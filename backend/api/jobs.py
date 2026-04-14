@@ -277,7 +277,7 @@ async def get_job_status(
 
 @router.get("/{job_id}/download")
 async def download_job(job_id: str):
-    """Redirige vers l'URL de téléchargement de la vidéo watermarkée (public)
+    """Télécharge la vidéo watermarkée en streaming (force le téléchargement)
     et incrémente le compteur de téléchargements."""
     try:
         jid = uuid.UUID(job_id)
@@ -296,6 +296,8 @@ async def download_job(job_id: str):
     if row["status"] != "done" or not row["storage_url"]:
         raise HTTPException(400, "Vidéo non disponible")
 
+    storage_url: str = row["storage_url"]
+
     # Incrémenter le compteur de téléchargements (fire & forget)
     try:
         async with get_conn() as conn:
@@ -306,8 +308,32 @@ async def download_job(job_id: str):
     except Exception:
         pass  # Ne pas bloquer le téléchargement si la mise à jour échoue
 
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=row["storage_url"], status_code=302)
+    # Streamer le fichier avec Content-Disposition: attachment
+    # pour forcer le téléchargement côté navigateur (évite l'ouverture inline)
+    import httpx
+    from fastapi.responses import StreamingResponse
+
+    try:
+        async def stream_video():
+            async with httpx.AsyncClient(timeout=600.0, follow_redirects=True) as client:  # 10 min — vidéos lourdes (2h+)
+                async with client.stream("GET", storage_url) as resp:
+                    resp.raise_for_status()
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        yield chunk
+
+        filename = f"spottedyou-video-{str(job_id)[:8]}.mp4"
+        return StreamingResponse(
+            stream_video(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-cache",
+            },
+        )
+    except Exception:
+        # Fallback : redirection directe si le streaming échoue
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=storage_url, status_code=302)
 
 
 # ── Liste jobs utilisateur ────────────────────────────────────────────────────

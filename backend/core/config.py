@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     WATERMARK_TEXT: str = "Translate free by Spottedyou.org"
 
     # ── Limites vidéo ─────────────────────────────────────────────────────────
-    VIDEO_SHORT_MAX_SECONDS: int = 300   # 5 min → "short"
-    VIDEO_MAX_SECONDS: int = 3600        # 60 min → refus absolu
+    VIDEO_SHORT_MAX_SECONDS: int = 300    # 5 min → "short"
+    VIDEO_MAX_SECONDS: int = 10800        # 3h max → refus absolu (override via env VIDEO_MAX_SECONDS)
 
     # ── Worker ────────────────────────────────────────────────────────────────
     LOCAL_TEMP_DIR: str = "/tmp/x-translator-processing"

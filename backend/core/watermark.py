@@ -1,7 +1,7 @@
 """
 core/watermark.py — Filigrane vidéo — x-translator-mvp
 Watermark : pattern diagonal semi-transparent + badge fixe haut-droite
-Texte : "Translate free by Spottedyou.org"
+Texte : "free translating by spottedyou.org for BRICSNewsFR"
 Dépendances : Pillow
 """
 from __future__ import annotations
@@ -56,7 +56,7 @@ def _generate_watermark_png(
          → impossible de couper un coin pour supprimer le filigrane
       2. Badge fixe haut-droite (~80% opacité) → lisible et bien visible
 
-    Texte : settings.WATERMARK_TEXT ("Translate free by Spottedyou.org")
+    Texte : settings.WATERMARK_TEXT ("free translating by spottedyou.org for BRICSNewsFR")
     """
     if text is None:
         text = settings.WATERMARK_TEXT
@@ -95,7 +95,7 @@ def _generate_watermark_png(
         # COUCHE 1 : Pattern diagonal répété
         # Méthode : générer un "tile" avec le texte incliné, puis le répliquer
         # ─────────────────────────────────────────────────────────────────────
-        DIAG_OPACITY = 80   # ~31% — bien visible sur toutes les vidéos
+        DIAG_OPACITY = 200   # ~62% — bien visible sur toutes les vidéos
         ANGLE        = -30  # degrés, sens horaire → monte vers la droite
 
         # Mesurer le texte

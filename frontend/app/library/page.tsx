@@ -184,35 +184,141 @@ async function forceDownload(jobId: string) {
   }
 }
 
-// ── Modal lecteur vidéo ───────────────────────────────────────────────────────
-function VideoModal({ storageUrl, onClose }: { storageUrl: string; onClose: () => void }) {
+// ── Modal lecteur vidéo enrichie ─────────────────────────────────────────────
+function EnhancedVideoModal({
+  group,
+  initialLang,
+  onClose,
+}: {
+  group: GroupedVideo;
+  initialLang?: string;
+  onClose: () => void;
+}) {
+  const firstDone = group.variants.find((v) => v.status === 'done');
+  const [currentLang, setCurrentLang] = useState<string>(
+    initialLang ?? firstDone?.lang ?? group.variants[0]?.lang ?? ''
+  );
+
+  const currentVariant = group.variants.find((v) => v.lang === currentLang && v.status === 'done')
+    ?? group.variants.find((v) => v.status === 'done');
+  const currentUrl = currentVariant?.storage_url ?? null;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const doneVariants = group.variants.filter((v) => v.status === 'done');
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl bg-gray-950 rounded-2xl overflow-hidden border border-gray-700 shadow-2xl"
+        className="relative w-full max-w-5xl bg-gray-950 rounded-3xl overflow-hidden border border-gray-700 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <video
-          src={storageUrl}
-          controls
-          autoPlay
-          className="w-full aspect-video bg-black"
-        />
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-900/80 border border-gray-700 hover:border-gray-500 flex items-center justify-center text-gray-400 hover:text-white transition-all"
-        >
-          ✕
-        </button>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="min-w-0 flex-1 pr-4">
+            <p className="text-sm text-gray-400 truncate">{group.source_url}</p>
+            {group.summary && (
+              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{group.summary}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-500 flex items-center justify-center text-gray-400 hover:text-white transition-all"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Lecteur vidéo */}
+        <div className="bg-black aspect-video">
+          {currentUrl ? (
+            <video
+              key={currentUrl}
+              src={currentUrl}
+              controls
+              autoPlay
+              className="w-full h-full"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+              Vidéo non disponible pour cette langue
+            </div>
+          )}
+        </div>
+
+        {/* Sélecteur de langue */}
+        {group.variants.length > 0 && (
+          <div className="p-5 border-t border-gray-800">
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-bold">
+              Langues disponibles
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {group.variants.map((v) => {
+                const isDone   = v.status === 'done';
+                const isActive = ACTIVE_STATUSES.has(v.status);
+                const isSelected = v.lang === currentLang;
+                return (
+                  <button
+                    key={v.lang}
+                    onClick={() => isDone && setCurrentLang(v.lang)}
+                    disabled={!isDone}
+                    className={`
+                      flex items-center gap-2 px-3.5 py-1.5 rounded-2xl border text-sm transition-all
+                      ${isSelected && isDone
+                        ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                        : isDone
+                          ? 'border-gray-700 hover:border-gray-500 hover:bg-gray-800 text-gray-300 cursor-pointer'
+                          : isActive
+                            ? 'border-blue-800/50 bg-blue-950/30 text-blue-400 opacity-70 cursor-wait'
+                            : 'border-gray-800 opacity-40 cursor-not-allowed text-gray-500'}
+                    `}
+                  >
+                    <span className="text-xl leading-none">{LANG_FLAGS[v.lang] ?? '🌐'}</span>
+                    <span>{LANG_NAMES[v.lang] ?? v.lang.toUpperCase()}</span>
+                    {isActive && (
+                      <svg className="animate-spin w-3 h-3 ml-0.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                    )}
+                    {!isDone && !isActive && (
+                      <span className="text-[10px] text-gray-600">(erreur)</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Bouton télécharger pour la langue active */}
+        {currentUrl && currentVariant && (
+          <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {doneVariants.length > 1
+                ? `${doneVariants.length} versions disponibles`
+                : '1 version disponible'}
+            </span>
+            <button
+              onClick={() => {
+                if (currentVariant.job_id) forceDownload(currentVariant.job_id);
+              }}
+              className="flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-600 rounded-2xl text-sm font-medium text-white transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Télécharger cette version
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -306,7 +412,7 @@ function VideoCard({
 }: {
   g: GroupedVideo;
   showDownload?: boolean;
-  onPlay: (url: string) => void;
+  onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
 }) {
   const hasAnyDone  = g.variants.some((v) => v.status === 'done');
@@ -365,10 +471,10 @@ function VideoCard({
         )}
 
         {/* Hover play overlay sur les vidéos terminées */}
-        {hasAnyDone && g.best_done_url && (
+        {hasAnyDone && (
           <button
             type="button"
-            onClick={() => onPlay(g.best_done_url!)}
+            onClick={() => onPlay(g)}
             className="absolute inset-0 bg-gray-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
           >
             <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center">
@@ -408,7 +514,7 @@ function VideoCard({
                 title={`${name} — ${isDone ? 'Terminé' : STATUS_LABELS[v.status] ?? v.status}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isDone && v.storage_url) onPlay(v.storage_url);
+                  if (isDone) onPlay(g, v.lang);
                 }}
                 className={`
                   flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium transition-all
@@ -456,11 +562,11 @@ function VideoCard({
             )}
           </div>
 
-          {/* Bouton DL (force blob download) */}
-          {showDownload && g.best_done_job_id && (
+          {/* Bouton DL — ouvre la modale sur la meilleure langue dispo */}
+          {showDownload && hasAnyDone && (
             <button
-              onClick={(e) => { e.stopPropagation(); forceDownload(g.best_done_job_id!); }}
-              title="Télécharger"
+              onClick={(e) => { e.stopPropagation(); onPlay(g); }}
+              title="Voir & Télécharger"
               className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-emerald-950/60 border border-gray-700 hover:border-emerald-700 text-gray-300 hover:text-emerald-400 transition-all"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -484,7 +590,7 @@ function VideoGrid({
 }: {
   groups: GroupedVideo[];
   showDownload?: boolean;
-  onPlay: (url: string) => void;
+  onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
 }) {
   if (groups.length === 0) return null;
@@ -528,9 +634,20 @@ export default function LibraryPage() {
   const [loading,    setLoading]    = useState(true);
 
   // Modal état
-  const [playerUrl,    setPlayerUrl]    = useState<string | null>(null);
-  const [addLangVideo, setAddLangVideo] = useState<GroupedVideo | null>(null);
-  const [addLangMsg,   setAddLangMsg]   = useState<string | null>(null);
+  const [modalGroup,     setModalGroup]     = useState<GroupedVideo | null>(null);
+  const [initialLang,    setInitialLang]    = useState<string | undefined>(undefined);
+  const [addLangVideo,   setAddLangVideo]   = useState<GroupedVideo | null>(null);
+  const [addLangMsg,     setAddLangMsg]     = useState<string | null>(null);
+
+  const handlePlay = useCallback((group: GroupedVideo, lang?: string) => {
+    setInitialLang(lang);
+    setModalGroup(group);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalGroup(null);
+    setInitialLang(undefined);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -574,9 +691,13 @@ export default function LibraryPage() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
-      {/* Modal vidéo */}
-      {playerUrl && (
-        <VideoModal storageUrl={playerUrl} onClose={() => setPlayerUrl(null)} />
+      {/* Modal vidéo enrichie */}
+      {modalGroup && (
+        <EnhancedVideoModal
+          group={modalGroup}
+          initialLang={initialLang}
+          onClose={handleCloseModal}
+        />
       )}
 
       {/* Modal ajouter langue */}
@@ -640,7 +761,7 @@ export default function LibraryPage() {
                         {t('inProgress', { count: activeGroups.length })}
                       </p>
                     </div>
-                    <VideoGrid groups={activeGroups} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={activeGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
                   </div>
                 )}
                 {doneGroups.length > 0 && (
@@ -648,7 +769,7 @@ export default function LibraryPage() {
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
                       {t('done', { count: doneGroups.length })}
                     </p>
-                    <VideoGrid groups={doneGroups} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={doneGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
                   </div>
                 )}
                 {errorGroups.length > 0 && (
@@ -656,7 +777,7 @@ export default function LibraryPage() {
                     <p className="text-[11px] font-bold uppercase tracking-widest text-red-500 mb-4">
                       {t('errors', { count: errorGroups.length })}
                     </p>
-                    <VideoGrid groups={errorGroups} showDownload={false} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={errorGroups} showDownload={false} onPlay={handlePlay} onAddLang={setAddLangVideo} />
                   </div>
                 )}
               </div>
@@ -691,7 +812,7 @@ export default function LibraryPage() {
               <p className="text-xs text-gray-500">Soyez le premier à traduire une vidéo !</p>
             </div>
           ) : (
-            <VideoGrid groups={publicGroups} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
+            <VideoGrid groups={publicGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
           )}
         </section>
 

@@ -257,8 +257,8 @@ def _transcribe_via_groq(
     try:
         r = subprocess.run(
             [ffmpeg, "-y", "-i", str(video_path),
-             "-vn", "-ar", "16000", "-ac", "1", "-b:a", "64k", str(audio_path)],
-            capture_output=True, timeout=120,
+             "-vn", "-ar", "16000", "-ac", "1", "-b:a", "16k", str(audio_path)],
+            capture_output=True, timeout=7200,  # 2h max — vidéos très longues
         )
         if r.returncode != 0 or not audio_path.exists():
             print(f"[groq] ❌ Extraction audio échouée (code {r.returncode})")
@@ -274,7 +274,7 @@ def _transcribe_via_groq(
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
 
-        with _httpx.Client(timeout=120.0) as client:
+        with _httpx.Client(timeout=300.0) as client:  # 5 min — fichiers audio lourds (vidéos 2h+)
             resp = client.post(
                 "https://api.groq.com/openai/v1/audio/transcriptions",
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -534,13 +534,19 @@ def _burn_subtitles_pillow(
         t_writer = threading.Thread(target=_write_stdin, daemon=True)
         t_drain.start()
         t_writer.start()
-        t_writer.join(timeout=300)
+
+        # Timeout dynamique : au moins 5 min, ou 2x la durée de la vidéo
+        multiplier = float(os.environ.get("PILLOW_TIMEOUT_MULTIPLIER", "2.0"))
+        writer_timeout = max(300, int(duration * multiplier))
+        print(f"[pillow] ⏳ Writer timeout défini à {writer_timeout}s (vidéo = {duration:.1f}s)")
+
+        t_writer.join(timeout=writer_timeout)
         if t_writer.is_alive():
             proc.kill()
-            print("[pillow] ⏱️  Timeout stdin → process killed")
+            print(f"[pillow] ⏱️  Timeout stdin après {writer_timeout}s → process killed")
             return False
         t_drain.join(timeout=30)
-        proc.wait(timeout=120)
+        proc.wait(timeout=max(120, int(duration * 1.5)))
 
         if proc.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
             mode = "pillow+WM" if (wm_path and wm_path.exists()) else "pillow"
@@ -761,12 +767,42 @@ async def process_video(
         print(f"[pipeline] ⬇️  Téléchargement {source_url}")
 
         import yt_dlp
-        ydl_opts = {
-            "format":      "best[height<=720][ext=mp4]/best[height<=720]/best",
-            "outtmpl":     str(workdir / "source.%(ext)s"),
-            "quiet":       True,
-            "no_warnings": True,
+
+        # ── Options cookies anti-bot YouTube ──────────────────────────────────
+        # Priorité : 1) fichier cookies.txt  2) navigateur (dev local)  3) rien
+        ydl_opts: dict = {
+            # Format ultra-permissif : couvre Shorts, vidéos normales, MP4/WebM
+            "format":               "bestvideo+bestaudio/best",
+            "merge_output_format":  "mp4",
+            "outtmpl":              str(workdir / "source.%(ext)s"),
+            "quiet":                True,
+            "no_warnings":          True,
+            # Limiter la résolution max sans refuser la vidéo si non dispo
+            "format_sort":          ["res:720", "ext:mp4:m4a"],
+            # Télécharge le script de résolution du n-challenge YouTube depuis GitHub
+            # (requis depuis yt-dlp 2026.03+ avec Deno comme runtime JS par défaut)
+            "remote_components":    "ejs:github",
         }
+
+        # 1. Fichier cookies.txt (prod Railway / env variable YTDLP_COOKIES_FILE)
+        cookies_file = os.environ.get(
+            "YTDLP_COOKIES_FILE",
+            str(Path(__file__).parent.parent / "cookies.txt"),
+        )
+        if os.path.isfile(cookies_file):
+            ydl_opts["cookiefile"] = cookies_file
+            print(f"[pipeline] 🍪 Cookies depuis fichier : {cookies_file}")
+        else:
+            # 2. Cookies depuis navigateur (dev local uniquement)
+            for browser in ("chrome", "firefox", "safari", "edge"):
+                try:
+                    yt_dlp.cookies.load_cookies_from_browser(browser)
+                    ydl_opts["cookiesfrombrowser"] = (browser, None, None, None)
+                    print(f"[pipeline] 🍪 Cookies depuis navigateur : {browser}")
+                    break
+                except Exception:
+                    continue
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(source_url, download=True)
             thumbnail_url = info.get("thumbnail") if info else None
@@ -936,8 +972,9 @@ async def process_video(
         upload_filename = f"translated_{ts}.mp4"
         print(f"[pipeline] ⬆️  Upload → {upload_filename}")
 
+        # Passe le Path directement → streaming par chunks, pas de chargement RAM
         upload_result = await upload_video(
-            job_id, final_mp4.read_bytes(), filename=upload_filename
+            job_id, final_mp4, filename=upload_filename
         )
 
         if not upload_result:

@@ -22,3 +22,7 @@ node_modules/
 .DS_Store
 .vscode/
 .idea/
+
+# Cookies YouTube (sensibles — ne JAMAIS committer)
+cookies.txt
+backend/cookies.txt

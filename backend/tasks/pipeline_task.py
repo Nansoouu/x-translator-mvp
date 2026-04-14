@@ -47,10 +47,13 @@ async def _force_done_status(
 @celery_app.task(
     name="tasks.pipeline_task.process_video_task",
     bind=True,
-    max_retries=3,
-    default_retry_delay=120,
-    time_limit=3600,
-    soft_time_limit=3500,
+    max_retries=2,
+    default_retry_delay=300,
+    # Vidéos longues (2h+) : download + burn Pillow + upload peuvent dépasser 5h
+    # time_limit  → Celery kill hard après N secondes
+    # soft_time_limit → SoftTimeLimitExceeded levée proprement
+    time_limit=43200,       # 12h max absolu
+    soft_time_limit=36000,  # 10h → permet de finir proprement
     queue="video_processing",
 )
 def process_video_task(self, job_id: str, source_url: str, target_lang: str, user_id: str):
