@@ -50,7 +50,27 @@ def _has_libass() -> bool:
         return False
 
 
-_LIBASS_OK = _has_libass()
+def _has_drawtext() -> bool:
+    try:
+        r = subprocess.run([_ffmpeg_path(), "-filters"], capture_output=True, timeout=10)
+        return b"drawtext" in r.stdout
+    except Exception:
+        return False
+
+
+def _init_ffmpeg_caps() -> tuple[bool, bool]:
+    _l = _has_libass()
+    _d = _has_drawtext()
+    if _l:
+        print("[ffmpeg/caps] Burn mode : Mode A libass")
+    elif _d:
+        print("[ffmpeg/caps] Burn mode : Mode B drawtext")
+    else:
+        print("[ffmpeg/caps] Burn mode : Mode C Pillow (rawvideo pipe)")
+    return _l, _d
+
+
+_LIBASS_OK, _DRAWTEXT_OK = _init_ffmpeg_caps()
 
 
 def _get_video_dims(video: Path) -> tuple[int, int]:
@@ -298,7 +318,221 @@ def _transcribe_via_groq(
         audio_path.unlink(missing_ok=True)
 
 
-# ─── Burn sous-titres — 2 passes ─────────────────────────────────────────────
+# ─── FPS helper ───────────────────────────────────────────────────────────────
+
+def _get_video_fps(video: Path) -> float:
+    ffprobe = _ffmpeg_path().replace("ffmpeg", "ffprobe")
+    try:
+        r = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=r_frame_rate",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(video)],
+            capture_output=True, timeout=15,
+        )
+        if r.returncode == 0 and r.stdout:
+            frac = r.stdout.decode().strip()
+            if "/" in frac:
+                num, den = frac.split("/")
+                return float(num) / float(den)
+            return float(frac)
+    except Exception:
+        pass
+    return 25.0
+
+
+# ─── Mode C : Pillow rawvideo pipe ───────────────────────────────────────────
+
+def _burn_subtitles_pillow(
+    video_path: Path,
+    srt_path: Path,
+    output_path: Path,
+    wm_path: Optional[Path] = None,
+) -> bool:
+    """
+    Incrustation sous-titres via Pillow + rawvideo pipe vers ffmpeg.
+    Fonctionne avec N'IMPORTE QUEL ffmpeg (pas de libass requis).
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont  # type: ignore
+    except ImportError:
+        print("[pillow] ❌ Pillow non installé — pip install Pillow")
+        import shutil
+        shutil.copy2(video_path, output_path)
+        return output_path.exists()
+
+    import threading
+
+    ffmpeg      = _ffmpeg_path()
+    vid_w, vid_h = _get_video_dims(video_path)
+    fps          = _get_video_fps(video_path)
+    duration     = _get_video_duration(video_path)
+    total_frames = int(fps * duration) + 5
+
+    blocks = _parse_srt(srt_path.read_text(encoding="utf-8"))
+    frame_to_text: dict[int, str] = {}
+    for block in blocks:
+        parts = block["timecode"].split(" --> ")
+        if len(parts) != 2:
+            continue
+        def _ts(ts: str) -> float:
+            ts = ts.strip().replace(",", ".")
+            h, m, s = ts.split(":")
+            return int(h) * 3600 + int(m) * 60 + float(s)
+        start_f = int(_ts(parts[0]) * fps)
+        end_f   = int(_ts(parts[1]) * fps)
+        text = block["text"].replace("\n", " ").strip()
+        if text:
+            for f in range(start_f, min(end_f, total_frames)):
+                frame_to_text[f] = text
+
+    if not frame_to_text:
+        import shutil
+        shutil.copy2(video_path, output_path)
+        return output_path.exists()
+
+    # Police
+    font_candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    ]
+    font_file = next((p for p in font_candidates if os.path.isfile(p)), None)
+    fontsize = max(24, int(vid_h * 0.05))
+
+    def _load_font(fs: int):
+        if font_file:
+            try:
+                return ImageFont.truetype(font_file, fs)
+            except Exception:
+                pass
+        try:
+            return ImageFont.load_default(size=fs)
+        except TypeError:
+            return ImageFont.load_default()
+
+    font         = _load_font(fontsize)
+    pad_h        = 16
+    pad_v        = 10
+    margin_bot   = int(vid_h * 0.05)
+    max_w        = int(vid_w * 0.80)
+    TRANSPARENT  = bytes(vid_w * vid_h * 4)
+    text_bytes: dict[str, bytes] = {}
+
+    _mimg  = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+    _mdraw = ImageDraw.Draw(_mimg)
+
+    unique_texts = set(frame_to_text.values())
+    for text in unique_texts:
+        # Wrap simple par caractère
+        import textwrap as _tw
+        wrapped_lines = _tw.wrap(text, width=max(20, int(max_w / (fontsize * 0.55))))
+        if not wrapped_lines:
+            wrapped_lines = [text]
+
+        img  = Image.new("RGBA", (vid_w, vid_h), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        line_sizes = [draw.textbbox((0, 0), l, font=font) for l in wrapped_lines]
+        line_widths  = [b[2] - b[0] for b in line_sizes]
+        line_heights = [b[3] - b[1] for b in line_sizes]
+        line_gap     = max(4, int(fontsize * 0.12))
+        total_h      = sum(line_heights) + line_gap * (len(wrapped_lines) - 1)
+        box_w        = min(max(line_widths) + pad_h * 2, vid_w - 10)
+        box_h        = total_h + pad_v * 2
+        x            = (vid_w - box_w) // 2
+        y            = vid_h - box_h - margin_bot
+
+        draw.rectangle([x, y, x + box_w, y + box_h], fill=(0, 0, 0, 230))
+
+        cur_y = y + pad_v
+        for line, lw, lh in zip(wrapped_lines, line_widths, line_heights):
+            tx = x + (box_w - lw) // 2
+            draw.text((tx, cur_y), line, fill=(255, 255, 255, 255), font=font)
+            cur_y += lh + line_gap
+
+        text_bytes[text] = img.tobytes()
+
+    print(f"[pillow] 🖼️  {len(unique_texts)} sous-titres, {total_frames} frames @ {fps:.1f}fps ({vid_w}x{vid_h})")
+
+    cmd = [
+        ffmpeg, "-y",
+        "-f", "rawvideo", "-vcodec", "rawvideo",
+        "-s", f"{vid_w}x{vid_h}", "-pix_fmt", "rgba", "-r", str(fps),
+        "-i", "pipe:0",
+        "-i", str(video_path),
+    ]
+    if wm_path and wm_path.exists():
+        cmd += ["-i", str(wm_path)]
+        filter_complex = (
+            "[1:v][2:v]overlay=0:0:format=auto,format=yuv420p[wm];"
+            "[wm][0:v]overlay=0:0:format=auto[v]"
+        )
+    else:
+        filter_complex = "[1:v][0:v]overlay=0:0:format=auto[v]"
+
+    cmd += [
+        "-filter_complex", filter_complex,
+        "-map", "[v]", "-map", "1:a?",
+        "-c:v", "libx264", "-crf", "23", "-preset", "ultrafast", "-threads", "0",
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        str(output_path),
+    ]
+
+    try:
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                                cwd=str(video_path.parent))
+        stderr_buf: list[bytes] = []
+
+        def _drain():
+            try:
+                while True:
+                    chunk = proc.stderr.read1(4096)  # type: ignore
+                    if not chunk:
+                        break
+                    stderr_buf.append(chunk)
+            except Exception:
+                pass
+
+        def _write_stdin():
+            try:
+                for fn in range(total_frames):
+                    txt = frame_to_text.get(fn)
+                    proc.stdin.write(text_bytes[txt] if txt else TRANSPARENT)  # type: ignore
+            except (BrokenPipeError, OSError):
+                pass
+            finally:
+                try:
+                    proc.stdin.close()  # type: ignore
+                except Exception:
+                    pass
+
+        t_drain  = threading.Thread(target=_drain,       daemon=True)
+        t_writer = threading.Thread(target=_write_stdin, daemon=True)
+        t_drain.start()
+        t_writer.start()
+        t_writer.join(timeout=300)
+        if t_writer.is_alive():
+            proc.kill()
+            print("[pillow] ⏱️  Timeout stdin → process killed")
+            return False
+        t_drain.join(timeout=30)
+        proc.wait(timeout=120)
+
+        if proc.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
+            mode = "pillow+WM" if (wm_path and wm_path.exists()) else "pillow"
+            print(f"[pillow] ✅ {output_path.name} [{mode}] ({output_path.stat().st_size // 1024} KB)")
+            return True
+
+        err = b"".join(stderr_buf).decode("utf-8", errors="replace")
+        print(f"[pillow] ❌ returncode={proc.returncode}\n{err[-400:]}")
+        return False
+
+    except Exception as e:
+        print(f"[pillow] ❌ Erreur : {e}")
+        return False
+
+
+# ─── Burn sous-titres — 1 passe (conf-map approach) ─────────────────────────
 
 def _burn_subtitles(
     video_path:  Path,
@@ -307,160 +541,138 @@ def _burn_subtitles(
     wm_path:     Optional[Path] = None,
 ) -> bool:
     """
-    Incrustation sous-titres + watermark — stratégie 2 passes :
-      Passe 1 : ASS (ou SRT fallback) via -vf → fichier intermédiaire
-      Passe 2 : overlay watermark sur le résultat via -filter_complex
+    Incrustation sous-titres + watermark.
 
-    Avantages :
-    - Évite les conflits de parsing filter_complex avec les chemins entre guillemets simples.
-    - Modes de fallback progressifs : ASS → SRT → watermark seul → copie directe.
+    Stratégie auto-détectée (même logique que conflict-map) :
+      Mode A — libass disponible :
+        → copie SRT/ASS dans video.parent, utilise ass=filename=X.ass (relatif)
+          + cwd=video.parent → évite tous les problèmes de parsing de chemin
+      Mode B — drawtext disponible mais pas libass :
+        → watermark seul (SRT abandonné, sous-titres trop complexes sans libass)
+      Mode C — ni l'un ni l'autre → Pillow rawvideo pipe (toujours fonctionnel)
     """
     import shutil
+    ffmpeg = _ffmpeg_path()
 
-    ffmpeg     = _ffmpeg_path()
-    inter_path = output_path.parent / "inter_subs.mp4"
+    # Copier le SRT dans le même dossier que la vidéo (OBLIGATOIRE pour libass)
+    srt_local = video_path.parent / srt_path.name
+    if srt_local != srt_path:
+        shutil.copy2(srt_path, srt_local)
 
-    # ── Helper : exécuter une commande FFmpeg ──────────────────────────────
-    def _run(cmd: list[str], label: str, out: Path) -> bool:
-        try:
-            proc = subprocess.run(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                timeout=600,
-            )
-            if proc.returncode == 0 and out.exists() and out.stat().st_size > 0:
-                print(f"[burn/{label}] ✅ OK — {out.stat().st_size // 1024} KB")
-                return True
-            err = (proc.stderr or b"").decode("utf-8", errors="replace")[-400:]
-            print(f"[burn/{label}] ⚠️  FFmpeg code={proc.returncode}: {err}")
-            out.unlink(missing_ok=True)
-        except subprocess.TimeoutExpired:
-            print(f"[burn/{label}] ❌ Timeout (600 s)")
-            out.unlink(missing_ok=True)
-        except Exception as e:
-            print(f"[burn/{label}] ❌ Exception : {e}")
-            out.unlink(missing_ok=True)
-        return False
+    libass_ok   = _LIBASS_OK
+    drawtext_ok = _DRAWTEXT_OK
 
-    # ── Générer le fichier ASS ─────────────────────────────────────────────
-    ass_path: Optional[Path] = None
-    try:
-        srt_content  = srt_path.read_text(encoding="utf-8")
+    # ── Mode C direct si aucun filtre texte dispo ──────────────────────────
+    if not libass_ok and not drawtext_ok:
+        print("[burn] ℹ️  libass absent, drawtext absent → Pillow rawvideo pipe")
+        if srt_local != srt_path:
+            srt_local.unlink(missing_ok=True)
+        return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
+
+    mode_tag = "?"
+    cmd: list[str]
+
+    if libass_ok:
+        # ── Mode A : ASS natif — chemin relatif + cwd ─────────────────────
         vid_w, vid_h = _get_video_dims(video_path)
-        ass_content  = _srt_to_ass(srt_content, vid_w, vid_h)
-        ass_path     = srt_path.parent / "translated.ass"
-        ass_path.write_text(ass_content, encoding="utf-8")
-        print(f"[burn] ✍️  ASS généré ({len(ass_content)} chars, {vid_w}×{vid_h})")
-    except Exception as e:
-        print(f"[burn] ⚠️  Conversion ASS échouée : {e}")
+        ass_content  = _srt_to_ass(srt_path.read_text(encoding="utf-8"), vid_w, vid_h)
+        ass_local    = video_path.parent / (srt_path.stem + ".ass")
+        ass_local.write_text(ass_content, encoding="utf-8")
 
-    # ── Passe 1 : incruster les sous-titres via -vf  ──────────────────────
-    # NOTE : on utilise -vf (NOT filter_complex) pour éviter les problèmes
-    # de parsing des chemins entre guillemets simples dans filter_complex.
-    subs_ok   = False
-    base_in   = video_path  # la source pour la passe 2 est modifiable
+        if srt_local != srt_path:
+            srt_local.unlink(missing_ok=True)   # ASS prend le relais, SRT nettoyé
 
-    if ass_path and ass_path.exists() and _LIBASS_OK:
-        # Le chemin ASS ne doit pas contenir de ':' ni de caractères spéciaux.
-        # Les UUIDs ne contiennent que des [a-z0-9-] → safe sans quotes.
-        ass_str = str(ass_path).replace("\\", "/").replace("'", "\\'")
-        cmd = [
-            ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"ass='{ass_str}'",
-            "-pix_fmt", "yuv420p",
-            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-            "-c:a", "copy", "-movflags", "+faststart",
-            str(inter_path),
-        ]
-        subs_ok = _run(cmd, "ass-vf", inter_path)
-        if not subs_ok:
-            print("[burn] ⚠️  Mode ASS échoué → fallback SRT")
+        print(f"[burn] ✍️  ASS ({len(ass_content)} chars, {vid_w}×{vid_h}) → {ass_local.name}")
 
-    if not subs_ok and _LIBASS_OK:
-        srt_str   = str(srt_path).replace("\\", "/").replace("'", "\\'")
-        style_str = (
-            "BorderStyle=3,BackColour=&H80000000,"
-            "PrimaryColour=&H00FFFFFF,FontSize=20,"
-            "Outline=0,MarginV=25,Fontname=Arial"
-        )
-        cmd = [
-            ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"subtitles='{srt_str}':force_style='{style_str}'",
-            "-pix_fmt", "yuv420p",
-            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-            "-c:a", "copy", "-movflags", "+faststart",
-            str(inter_path),
-        ]
-        subs_ok = _run(cmd, "srt-vf", inter_path)
-        if not subs_ok:
-            print("[burn] ⚠️  Mode SRT échoué → sous-titres abandonnés")
-
-    # Si AUCUN mode de sous-titres n'a fonctionné → passe 2 sur la source originale
-    if subs_ok:
-        base_in = inter_path
-    else:
-        base_in = video_path
-
-    # ── Passe 2 : overlay watermark ───────────────────────────────────────
-    if wm_path and wm_path.exists():
-        cmd = [
-            ffmpeg, "-y", "-nostdin",
-            "-i", str(base_in), "-i", str(wm_path),
-            "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
-            "-map", "[out]", "-map", "0:a:0?",
-            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-            "-c:a", "copy", "-movflags", "+faststart",
-            str(output_path),
-        ]
-        ok = _run(cmd, "wm-overlay", output_path)
-        inter_path.unlink(missing_ok=True)
-        if ok:
-            return True
-        print("[burn] ⚠️  Overlay watermark échoué → copie base_in")
-
-    # ── Cas sans watermark ou si overlay échoué ────────────────────────────
-    if subs_ok:
-        # On a les sous-titres mais pas le watermark → on essaie quand même le watermark
-        # en utilisant le fichier intermédiaire comme source
         if wm_path and wm_path.exists():
-            wm_cmd = [
+            filter_complex = (
+                f"[0:v]ass=filename={ass_local.name}[s];"
+                f"[s][1:v]overlay=0:0:format=auto,format=yuv420p[v]"
+            )
+            cmd = [
                 ffmpeg, "-y", "-nostdin",
-                "-i", str(inter_path), "-i", str(wm_path),
-                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
-                "-map", "[out]", "-map", "0:a:0?",
+                "-i", str(video_path), "-i", str(wm_path),
+                "-filter_complex", filter_complex,
+                "-map", "[v]", "-map", "0:a?",
                 "-c:v", "libx264", "-crf", "18", "-preset", "fast",
                 "-c:a", "copy", "-movflags", "+faststart",
                 str(output_path),
             ]
-            wm_ok = _run(wm_cmd, "wm-fallback", output_path)
-            inter_path.unlink(missing_ok=True)
-            if wm_ok:
-                return True
-            print("[burn] ⚠️  Watermark fallback échoué → déplacement intermédiaire")
-        shutil.move(str(inter_path), str(output_path))
-        return output_path.exists() and output_path.stat().st_size > 0
+        else:
+            cmd = [
+                ffmpeg, "-y", "-nostdin", "-i", str(video_path),
+                "-vf", f"ass=filename={ass_local.name},format=yuv420p",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "copy", "-movflags", "+faststart",
+                str(output_path),
+            ]
+        mode_tag = "ass+WM" if (wm_path and wm_path.exists()) else "ass"
 
-    # ── Dernier recours : source + watermark obligatoire ──────────────────
-    if wm_path and wm_path.exists():
-        print("[burn] ⚠️  Tentative watermark seul sur la source originale")
-        wm_cmd = [
-            ffmpeg, "-y", "-nostdin",
-            "-i", str(video_path), "-i", str(wm_path),
-            "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
-            "-map", "[out]", "-map", "0:a:0?",
-            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-            "-c:a", "copy", "-movflags", "+faststart",
-            str(output_path),
-        ]
-        wm_ok = _run(wm_cmd, "wm-source-only", output_path)
-        if wm_ok:
+    else:
+        # ── Mode B : drawtext dispo mais pas libass → watermark seul ────────
+        print("[burn] ℹ️  libass absent, drawtext OK → watermark seul (sous-titres abandonnés)")
+        if srt_local != srt_path:
+            srt_local.unlink(missing_ok=True)
+
+        if wm_path and wm_path.exists():
+            cmd = [
+                ffmpeg, "-y", "-nostdin",
+                "-i", str(video_path), "-i", str(wm_path),
+                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
+                "-map", "[v]", "-map", "0:a?",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "copy", "-movflags", "+faststart",
+                str(output_path),
+            ]
+            mode_tag = "wm-only"
+        else:
+            shutil.copy2(video_path, output_path)
+            return output_path.exists() and output_path.stat().st_size > 0
+
+    # ── Exécution FFmpeg ───────────────────────────────────────────────────
+    _vid_dur = _get_video_duration(video_path)
+    _timeout = max(120, int(_vid_dur * 8))
+    print(f"[burn] ⏱  Timeout dynamique : {_timeout}s")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True, text=True,
+            timeout=_timeout,
+            cwd=str(video_path.parent),   # ← clé : résolution des chemins relatifs
+        )
+
+        # Nettoyage fichiers locaux
+        if libass_ok:
+            ass_local.unlink(missing_ok=True)
+
+        if result.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
+            print(f"[burn] ✅ {output_path.name} [{mode_tag}] ({output_path.stat().st_size // 1024} KB)")
             return True
 
-    # ── Dernier recours absolu : copie directe (ne devrait jamais arriver) ──
-    print("[burn] ❌  Aucun rendu possible — copie directe (SANS watermark)")
-    shutil.copy2(video_path, output_path)
-    return output_path.exists() and output_path.stat().st_size > 0
+        print(f"[burn] ❌ FFmpeg code={result.returncode}")
+        if result.stderr:
+            print(f"[burn] stderr: {result.stderr[-600:]}")
+
+        # Fallback Pillow si libass a échoué (RTL, codec exotique, etc.)
+        if libass_ok:
+            print("[burn] ⚠️  Mode A échoué → fallback Pillow rawvideo pipe")
+            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
+        return False
+
+    except subprocess.TimeoutExpired:
+        print(f"[burn] ⏱️  Timeout (>{_timeout}s) → fallback Pillow")
+        if libass_ok:
+            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
+        return False
+    except FileNotFoundError:
+        print("[burn] ❌ ffmpeg introuvable")
+        return False
+    except Exception as e:
+        print(f"[burn] ❌ Exception : {e}")
+        if libass_ok:
+            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
+        return False
 
 
 # ─── Pipeline principal ───────────────────────────────────────────────────────
