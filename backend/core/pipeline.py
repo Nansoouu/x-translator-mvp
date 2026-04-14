@@ -43,9 +43,18 @@ def _ffmpeg_path() -> str:
 
 
 def _has_libass() -> bool:
+    """
+    Vérifie si le filtre 'ass' est réellement disponible dans ce build FFmpeg.
+    IMPORTANT : on cherche 'ass' comme NOM EXACT de filtre (mot entier),
+    pas comme sous-chaîne — évite les faux positifs sur 'passthrough', 'bass', etc.
+    La sortie de `ffmpeg -filters` ressemble à :
+      " T.. ass              V->V  ..."
+    """
+    import re
     try:
         r = subprocess.run([_ffmpeg_path(), "-filters"], capture_output=True, timeout=10)
-        return b"subtitles" in r.stdout or b"ass" in r.stdout
+        # Mot exact : "ass" précédé d'un espace ou début de ligne, suivi d'un espace
+        return bool(re.search(rb'(?:^|\s)ass\s', r.stdout, re.MULTILINE))
     except Exception:
         return False
 
@@ -390,13 +399,28 @@ def _burn_subtitles_pillow(
         shutil.copy2(video_path, output_path)
         return output_path.exists()
 
-    # Police
+    # Police Unicode (macOS + Linux / Railway Debian/Ubuntu)
     font_candidates = [
+        # macOS
         "/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+        "/System/Library/Fonts/HelveticaNeue.ttc",
+        # Linux (Debian/Ubuntu — paquets fonts-liberation, fonts-dejavu, fonts-noto)
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        # Chemins alternatifs Linux
+        "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
     ]
     font_file = next((p for p in font_candidates if os.path.isfile(p)), None)
+    if font_file:
+        print(f"[pillow] 🔤 Police Unicode : {font_file}")
+    else:
+        print("[pillow] ⚠️  Aucune police TTF trouvée — fallback bitmap 8px (accents limités)")
     fontsize = max(24, int(vid_h * 0.05))
 
     def _load_font(fs: int):
