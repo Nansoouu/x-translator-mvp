@@ -91,6 +91,29 @@ const FORMATS = [
   { id: '1:1',   label: '1:1',  sublabel: 'Insta carré',      icon: '⬜' },
 ];
 
+const LANGUAGES = [
+  { code: 'fr', flag: '🇫🇷', label: 'Français' },
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+  { code: 'es', flag: '🇪🇸', label: 'Español' },
+  { code: 'de', flag: '🇩🇪', label: 'Deutsch' },
+  { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+  { code: 'pt', flag: '🇵🇹', label: 'Português' },
+  { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+  { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+  { code: 'zh', flag: '🇨🇳', label: '中文' },
+  { code: 'ja', flag: '🇯🇵', label: '日本語' },
+  { code: 'ko', flag: '🇰🇷', label: '한국어' },
+  { code: 'tr', flag: '🇹🇷', label: 'Türkçe' },
+  { code: 'uk', flag: '🇺🇦', label: 'Українська' },
+  { code: 'fa', flag: '🇮🇷', label: 'فارسی' },
+  { code: 'he', flag: '🇮🇱', label: 'עברית' },
+  { code: 'pl', flag: '🇵🇱', label: 'Polski' },
+  { code: 'nl', flag: '🇳🇱', label: 'Nederlands' },
+  { code: 'hi', flag: '🇮🇳', label: 'हिन्दी' },
+  { code: 'vi', flag: '🇻🇳', label: 'Tiếng Việt' },
+  { code: 'id', flag: '🇮🇩', label: 'Bahasa Indonesia' },
+];
+
 // ── Composant ClipCard (sélection) ────────────────────────────────────────────
 function ClipCard({
   clip, selected, onToggle, onPreview,
@@ -165,9 +188,11 @@ function ClipCard({
 
 // ── Composant ResultCard (après export) ───────────────────────────────────────
 function ResultCard({
-  kit, onPlay, onCopy, copied,
+  kit, onPlay, onDownload, downloading, onCopy, copied,
 }: {
   kit: KitItem; onPlay: (url: string) => void;
+  onDownload: (url: string, title: string) => void;
+  downloading: boolean;
   onCopy: () => void; copied: boolean;
 }) {
   return (
@@ -193,14 +218,20 @@ function ResultCard({
         </div>
 
         <div className="flex flex-col gap-2 shrink-0">
-          <a
-            href={kit.url}
-            download
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs transition-colors"
+          {/* Bouton téléchargement direct via fetch+blob */}
+          <button
+            onClick={() => onDownload(kit.url, kit.title)}
+            disabled={downloading}
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs transition-colors"
             title="Télécharger"
           >
-            ⬇
-          </a>
+            {downloading ? (
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+            ) : '⬇'}
+          </button>
           <button
             onClick={onCopy}
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-white text-xs transition-colors"
@@ -224,10 +255,12 @@ export default function StudioEditorPage() {
   const [loading,       setLoading]       = useState(true);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [format,        setFormat]        = useState('9:16');
+  const [translateTo,   setTranslateTo]   = useState<string | null>(null);
   const [exportState,   setExportState]   = useState<'idle' | 'exporting' | 'done' | 'error'>('idle');
   const [exportResult,  setExportResult]  = useState<ExportResult | null>(null);
   const [copiedIdx,     setCopiedIdx]     = useState<number | null>(null);
   const [playerUrl,     setPlayerUrl]     = useState<string | null>(null);
+  const [downloading,   setDownloading]   = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -303,13 +336,34 @@ export default function StudioEditorPage() {
     }, 100);
   }
 
+  async function downloadClip(url: string, title: string) {
+    setDownloading(url);
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href     = blobUrl;
+      a.download = `${title.replace(/[^a-z0-9]/gi, '_').slice(0, 60)}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank'); // fallback
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   async function handleExport() {
     if (!project || selectedClips.size === 0) return;
     setExportState('exporting');
     try {
       const res = await createStudioExport(project.id, {
-        clip_ids: Array.from(selectedClips),
+        clip_ids:     Array.from(selectedClips),
         format,
+        translate_to: translateTo || undefined,
       });
       const poll = setInterval(async () => {
         try {
@@ -493,6 +547,8 @@ export default function StudioEditorPage() {
                       key={kit.clip_id}
                       kit={kit}
                       onPlay={playClip}
+                      onDownload={downloadClip}
+                      downloading={downloading === kit.url}
                       onCopy={() => copyKit(kit, idx)}
                       copied={copiedIdx === idx}
                     />
@@ -525,6 +581,44 @@ export default function StudioEditorPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Langue de traduction */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500">Traduction sous-titres</h3>
+                {translateTo && (
+                  <button
+                    onClick={() => setTranslateTo(null)}
+                    className="text-[10px] text-gray-500 hover:text-white border border-gray-700 hover:border-gray-500 px-2 py-0.5 rounded-md transition-colors"
+                  >
+                    Retirer
+                  </button>
+                )}
+              </div>
+              {!translateTo ? (
+                <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => setTranslateTo(lang.code)}
+                      disabled={exportState !== 'idle'}
+                      className="flex flex-col items-center gap-0.5 p-2 rounded-xl border border-gray-700 hover:border-violet-500 hover:bg-violet-950/20 text-gray-400 hover:text-violet-300 transition-all disabled:opacity-40 text-center"
+                    >
+                      <span className="text-base leading-none">{lang.flag}</span>
+                      <span className="text-[9px] leading-tight">{lang.label.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 py-1">
+                  <span className="text-2xl">{LANGUAGES.find(l => l.code === translateTo)?.flag}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{LANGUAGES.find(l => l.code === translateTo)?.label}</p>
+                    <p className="text-[10px] text-violet-400">Sous-titres traduits + incrustés</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Récap */}

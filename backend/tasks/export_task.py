@@ -136,18 +136,54 @@ async def _export(export_id: str) -> None:
                 print(f"[export_task] ⚠️  Clip {clip_id[:8]} échoué, ignoré")
                 continue
 
-            # Optionnel : sous-titres traduits via Agent 1
+            # ── Traduction + sous-titres ──────────────────────────────────────
             final_path = clip_path
-            if translate_to:
+            if translate_to and settings.GROQ_API_KEY and settings.OPENROUTER_API_KEY:
                 try:
-                    from core.pipeline import process_video as _process_video
-                    # On n'a pas d'URL pour le clip local → utilise directement le fichier
-                    # Solution simple : créer un job fantôme n'est pas idéal ici,
-                    # on appelle directement _burn_subtitles avec un SRT vide pour l'instant
-                    # TODO: pipeline complet sur clip local dans une v2
-                    pass
+                    from core.pipeline import _transcribe_via_groq, _burn_subtitles
+                    from core.openrouter import translate_srt
+
+                    srt_path = tmp / f"clip_{clip_id[:8]}.srt"
+                    txt_path = tmp / f"clip_{clip_id[:8]}.txt"
+
+                    # 1. Transcription Groq sur le clip (15-60s → très rapide)
+                    transcribe_result = await asyncio.to_thread(
+                        _transcribe_via_groq, final_path, srt_path, txt_path,
+                        settings.GROQ_API_KEY,
+                    )
+                    if transcribe_result and srt_path.exists():
+                        src_lang    = transcribe_result.get("language", "auto") or "auto"
+                        srt_content = srt_path.read_text(encoding="utf-8")
+
+                        # 2. Traduction DeepSeek V3
+                        translated_srt = await translate_srt(srt_content, src_lang, translate_to)
+                        if translated_srt:
+                            tr_srt_path = tmp / f"clip_{clip_id[:8]}_tr.srt"
+                            tr_srt_path.write_text(translated_srt, encoding="utf-8")
+
+                            # 3. Burn sous-titres avec FFmpeg
+                            burned_path = tmp / f"clip_{clip_id[:8]}_burned.mp4"
+                            ok_burn = await asyncio.to_thread(
+                                _burn_subtitles, final_path, tr_srt_path, burned_path
+                            )
+                            if ok_burn and burned_path.exists():
+                                final_path = burned_path
+                                print(f"[export_task] 🗣️  Subs {src_lang}→{translate_to} brûlés sur clip {clip_id[:8]}")
                 except Exception as e:
-                    print(f"[export_task] ⚠️  Traduction clip ignorée: {e}")
+                    print(f"[export_task] ⚠️  Traduction clip {clip_id[:8]} ignorée: {e}")
+
+            # ── Watermark ─────────────────────────────────────────────────────
+            try:
+                from core.watermark import add_watermark_video
+                clip_bytes = await asyncio.to_thread(final_path.read_bytes)
+                wm_bytes   = await asyncio.to_thread(add_watermark_video, clip_bytes)
+                if wm_bytes:
+                    wm_file = tmp / f"clip_{clip_id[:8]}_wm.mp4"
+                    await asyncio.to_thread(wm_file.write_bytes, wm_bytes)
+                    final_path = wm_file
+                    print(f"[export_task] 🔒 Watermark appliqué sur clip {clip_id[:8]}")
+            except Exception as e:
+                print(f"[export_task] ⚠️  Watermark clip {clip_id[:8]} ignoré: {e}")
 
             # Upload Supabase
             upload_res = await upload_video(
