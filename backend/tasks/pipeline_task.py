@@ -16,6 +16,11 @@ from core.celery_app import celery_app
 )
 def process_video_task(self, job_id: str, source_url: str, target_lang: str, user_id: str):
     """Enveloppe Celery pour le pipeline async process_video()."""
+    # Reset du pool asyncpg : chaque task Celery crée un nouveau event loop
+    # via asyncio.run(), le pool du run précédent serait lié à un loop fermé.
+    import core.db as _db
+    _db._pool = None
+
     from core.pipeline import process_video
 
     try:

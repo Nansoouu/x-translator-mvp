@@ -48,6 +48,18 @@ export async function register(email: string, password: string) {
   return r.json();
 }
 
+export async function getPublicLibrary() {
+  const r = await fetch(`${API}/jobs/public`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getQueueStats() {
+  const r = await fetch(`${API}/jobs/queue-stats`);
+  if (!r.ok) return { active_count: 0, queued_count: 0, estimated_wait_s: 0 };
+  return r.json();
+}
+
 export async function getBillingStatus() {
   const r = await fetch(`${API}/billing/status`, { headers: authHeaders() });
   if (!r.ok) return null;

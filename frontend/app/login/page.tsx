@@ -23,13 +23,15 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         await login(email, password);
-        router.push('/');
+        // Hard redirect : force le rechargement complet pour que la Navbar
+        // relise le localStorage et affiche l'état connecté
+        window.location.href = '/';
       } else {
         const res = await register(email, password);
         if (res?.access_token) {
-          router.push('/');
+          window.location.href = '/';
         } else {
-          setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
+          setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
         }
       }
     } catch (err: any) {

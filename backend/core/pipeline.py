@@ -4,21 +4,25 @@ core/pipeline.py — Pipeline vidéo complet — x-translator-mvp
 Pipeline :
   1. yt-dlp → télécharge MP4 dans /tmp/{job_id}/source.mp4
   2. FFmpeg → extrait audio MP3 16kHz mono
-  3. Groq Whisper API → SRT source + langue détectée
+  3. Groq API → SRT source + langue détectée
   4. Hallucination filter (regex + LLM) → SRT propre
   5. Résumé LLM (DeepSeek V3) → stocké dans jobs.summary
   6. OpenRouter DeepSeek V3 → translate_srt() → SRT traduit
-  7. FFmpeg burn sous-titres (libass/drawtext/pillow)
-  8. add_watermark_video() → MP4 final watermarqué
-  9. Supabase Storage → upload
-  10. UPDATE jobs SET status='done'
+  7. Décalage timing SRT (+200ms pour éviter l'affichage trop tôt)
+  8. SRT → ASS (fond noir + texte blanc + wrapping 42 chars)
+  9. FFmpeg burn ASS (pass 1) + overlay watermark (pass 2) → MP4 final
+  10. Supabase Storage → upload
+  11. UPDATE jobs SET status='done'
 """
 from __future__ import annotations
 
 import asyncio
 import os
+import re
 import subprocess
+import textwrap
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -41,21 +45,12 @@ def _ffmpeg_path() -> str:
 def _has_libass() -> bool:
     try:
         r = subprocess.run([_ffmpeg_path(), "-filters"], capture_output=True, timeout=10)
-        return b"subtitles" in r.stdout
+        return b"subtitles" in r.stdout or b"ass" in r.stdout
     except Exception:
         return False
 
 
-def _has_drawtext() -> bool:
-    try:
-        r = subprocess.run([_ffmpeg_path(), "-filters"], capture_output=True, timeout=10)
-        return b"drawtext" in r.stdout
-    except Exception:
-        return False
-
-
-_LIBASS_OK    = _has_libass()
-_DRAWTEXT_OK  = _has_drawtext()
+_LIBASS_OK = _has_libass()
 
 
 def _get_video_dims(video: Path) -> tuple[int, int]:
@@ -71,7 +66,7 @@ def _get_video_dims(video: Path) -> tuple[int, int]:
             return int(parts[0]), int(parts[1])
     except Exception:
         pass
-    return 1920, 1080
+    return 1280, 720
 
 
 def _get_video_duration(video: Path) -> float:
@@ -118,6 +113,104 @@ def _write_srt(blocks: list[dict]) -> str:
     return "\n".join(parts)
 
 
+# ─── Helpers SRT → ASS ────────────────────────────────────────────────────────
+
+def _srt_time_to_ass(ts: str) -> str:
+    """Convertit un timestamp SRT (00:00:01,000) en format ASS (0:00:01.00)."""
+    ts    = ts.strip().replace(",", ".")
+    parts = ts.split(":")
+    h     = int(parts[0])
+    m     = int(parts[1])
+    rest  = parts[2].split(".")
+    s     = int(rest[0])
+    ms    = int(rest[1]) if len(rest) > 1 else 0
+    cs    = ms // 10  # centisecondes
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def _srt_to_ass(srt_content: str, vid_w: int = 1280, vid_h: int = 720) -> str:
+    """
+    Convertit SRT → ASS (Advanced SubStation Alpha).
+    Style : fond noir semi-transparent (BorderStyle=3) + texte blanc + wrapping 42 chars/ligne.
+    """
+    MAX_CHARS = 42
+    font_size = max(18, min(26, vid_h // 32))
+    margin_v  = max(20, vid_h // 28)
+
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        f"PlayResX: {vid_w}\n"
+        f"PlayResY: {vid_h}\n"
+        "WrapStyle: 0\n"
+        "\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+        "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,Arial,{font_size},"
+        "&H00FFFFFF,"   # PrimaryColour  : blanc opaque
+        "&H000000FF,"   # SecondaryColour
+        "&H00000000,"   # OutlineColour  : noir
+        "&HA0000000,"   # BackColour     : noir 62 % opaque
+        "0,0,0,0,"      # Bold, Italic, Underline, StrikeOut
+        "100,100,0,0,"  # ScaleX, ScaleY, Spacing, Angle
+        "3,"            # BorderStyle=3 → boîte opaque derrière le texte
+        "1,0,"          # Outline, Shadow
+        "2,"            # Alignment=2   → bas-centre
+        f"20,20,{margin_v},1\n"
+        "\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    blocks      = _parse_srt(srt_content)
+    event_lines = []
+    for b in blocks:
+        try:
+            parts    = b["timecode"].split(" --> ")
+            t_start  = _srt_time_to_ass(parts[0])
+            t_end    = _srt_time_to_ass(parts[1])
+            raw      = b["text"].replace("\n", " ").strip()
+            wrapped  = textwrap.fill(raw, MAX_CHARS)
+            ass_text = wrapped.replace("\n", "\\N")
+            event_lines.append(
+                f"Dialogue: 0,{t_start},{t_end},Default,,0,0,0,,{ass_text}"
+            )
+        except Exception:
+            continue
+
+    return header + "\n".join(event_lines) + "\n"
+
+
+def _shift_srt_timing(srt_content: str, offset_ms: int = 200) -> str:
+    """Décale tous les timestamps SRT de +offset_ms ms."""
+    def time_to_ms(ts: str) -> int:
+        h, m, s_ms = ts.strip().split(":")
+        s, ms = s_ms.split(",")
+        return int(h) * 3_600_000 + int(m) * 60_000 + int(s) * 1_000 + int(ms)
+
+    def ms_to_time(total: int) -> str:
+        total = max(0, total)
+        h  = total // 3_600_000; total %= 3_600_000
+        m  = total // 60_000;    total %= 60_000
+        s  = total // 1_000;     ms = total % 1_000
+        return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+    def shift_match(match: re.Match) -> str:
+        return (
+            f"{ms_to_time(time_to_ms(match.group(1)) + offset_ms)} --> "
+            f"{ms_to_time(time_to_ms(match.group(2)) + offset_ms)}"
+        )
+
+    return re.sub(
+        r"(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})",
+        shift_match,
+        srt_content,
+    )
+
+
 # ─── Transcription Groq ───────────────────────────────────────────────────────
 
 def _transcribe_via_groq(
@@ -126,7 +219,7 @@ def _transcribe_via_groq(
     txt_out: Path,
     api_key: str,
 ) -> dict | None:
-    """Transcription via Groq Whisper cloud (whisper-large-v3-turbo)."""
+    """Transcription via Groq cloud API."""
     import httpx as _httpx
 
     ffmpeg     = _ffmpeg_path()
@@ -205,7 +298,7 @@ def _transcribe_via_groq(
         audio_path.unlink(missing_ok=True)
 
 
-# ─── Burn sous-titres ─────────────────────────────────────────────────────────
+# ─── Burn sous-titres — 2 passes ─────────────────────────────────────────────
 
 def _burn_subtitles(
     video_path:  Path,
@@ -214,176 +307,126 @@ def _burn_subtitles(
     wm_path:     Optional[Path] = None,
 ) -> bool:
     """
-    Incrustation sous-titres + watermark optionnel.
-    Mode A : libass (subtitles filter) — qualité max
-    Mode B : pillow (frame-by-frame) — fallback universel
+    Incrustation sous-titres + watermark — stratégie 2 passes :
+      Passe 1 : ASS (ou SRT fallback) via -vf → fichier intermédiaire
+      Passe 2 : overlay watermark sur le résultat via -filter_complex
+
+    Avantages :
+    - Évite les conflits de parsing filter_complex avec les chemins entre guillemets simples.
+    - Modes de fallback progressifs : ASS → SRT → watermark seul → copie directe.
     """
-    ffmpeg = _ffmpeg_path()
+    import shutil
 
-    if _LIBASS_OK:
-        # Mode A : libass
-        srt_esc  = str(srt_path).replace("\\", "/").replace(":", "\\:")
-        vf_chain = f"subtitles='{srt_esc}':force_style='FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H000000&,Outline=1'"
-        if wm_path:
-            cmd = [
-                ffmpeg, "-y", "-nostdin",
-                "-i", str(video_path), "-i", str(wm_path),
-                "-filter_complex",
-                f"[0:v]{vf_chain}[subbed];[subbed][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
-                "-map", "[out]", "-map", "0:a:0?",
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                str(output_path),
-            ]
-        else:
-            cmd = [
-                ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-                "-vf", vf_chain,
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                str(output_path),
-            ]
-        proc = subprocess.run(cmd, capture_output=True, timeout=600)
-        if proc.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
-            return True
-        print(f"[burn/libass] ⚠️  FFmpeg code={proc.returncode} — fallback Pillow")
+    ffmpeg     = _ffmpeg_path()
+    inter_path = output_path.parent / "inter_subs.mp4"
 
-    # Mode B : Pillow frame-by-frame (fallback universel)
-    return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
-
-
-def _burn_subtitles_pillow(
-    video_path:  Path,
-    srt_path:    Path,
-    output_path: Path,
-    wm_path:     Optional[Path] = None,
-) -> bool:
-    """Incrustation sous-titres via Pillow (frame-by-frame). Lent mais universel."""
-    ffmpeg = _ffmpeg_path()
-    try:
-        from PIL import Image, ImageDraw, ImageFont, ImageFilter
-
-        srt_content = srt_path.read_text(encoding="utf-8")
-        blocks      = _parse_srt(srt_content)
-        vid_w, vid_h = _get_video_dims(video_path)
-
-        def _srt_time_to_sec(ts: str) -> float:
-            ts = ts.strip().replace(",", ".")
-            parts = ts.split(":")
-            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
-
-        # Extraire frames via ffmpeg pipe
-        fps_cmd = subprocess.run(
-            [ffmpeg.replace("ffmpeg", "ffprobe"), "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=r_frame_rate",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
-            capture_output=True, timeout=15,
-        )
-        fps = 25.0
-        if fps_cmd.returncode == 0:
-            try:
-                frac = fps_cmd.stdout.decode().strip()
-                if "/" in frac:
-                    n, d = frac.split("/")
-                    fps = float(n) / float(d)
-                else:
-                    fps = float(frac)
-            except Exception:
-                pass
-
-        wm_img = None
-        if wm_path and wm_path.exists():
-            wm_img = Image.open(wm_path).convert("RGBA")
-
-        font_path = None
-        for fp in [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/Library/Fonts/Arial Bold.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-        ]:
-            if os.path.isfile(fp):
-                font_path = fp
-                break
+    # ── Helper : exécuter une commande FFmpeg ──────────────────────────────
+    def _run(cmd: list[str], label: str, out: Path) -> bool:
         try:
-            font = ImageFont.truetype(font_path, 22) if font_path else ImageFont.load_default()
-        except Exception:
-            font = ImageFont.load_default()
-
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpdir:
-            frames_dir = Path(tmpdir) / "frames"
-            frames_dir.mkdir()
-
-            # Extract frames
-            extract_proc = subprocess.run(
-                [ffmpeg, "-y", "-i", str(video_path),
-                 "-vf", f"scale={vid_w}:{vid_h}",
-                 f"{frames_dir}/%08d.png"],
-                capture_output=True, timeout=600,
+            proc = subprocess.run(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=600,
             )
-            if extract_proc.returncode != 0:
-                print("[burn/pillow] ❌ Extraction frames échouée")
-                return False
-
-            frame_files = sorted(frames_dir.glob("*.png"))
-            for i, frame_file in enumerate(frame_files):
-                t = i / fps
-                # Trouver le bloc SRT actif
-                active_text = None
-                for block in blocks:
-                    try:
-                        parts    = block["timecode"].split(" --> ")
-                        t_start  = _srt_time_to_sec(parts[0])
-                        t_end    = _srt_time_to_sec(parts[1])
-                        if t_start <= t <= t_end:
-                            active_text = block["text"]
-                            break
-                    except Exception:
-                        continue
-
-                frame = Image.open(frame_file).convert("RGBA")
-
-                if wm_img:
-                    frame = Image.alpha_composite(frame, wm_img.resize(frame.size, Image.LANCZOS))
-
-                if active_text:
-                    draw = ImageDraw.Draw(frame)
-                    lines = active_text.split("\n")
-                    for li, line in enumerate(reversed(lines)):
-                        try:
-                            bbox   = draw.textbbox((0, 0), line, font=font)
-                            text_w = bbox[2] - bbox[0]
-                            text_h = bbox[3] - bbox[1]
-                        except AttributeError:
-                            text_w, text_h = draw.textsize(line, font=font)
-                        x = (vid_w - text_w) // 2
-                        y = vid_h - 60 - li * (text_h + 6)
-                        draw.text((x + 1, y + 1), line, font=font, fill=(0, 0, 0, 230))
-                        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
-
-                frame.convert("RGB").save(frame_file, format="PNG")
-
-            # Réassembler en vidéo
-            cmd = [
-                ffmpeg, "-y", "-framerate", str(fps),
-                "-i", f"{frames_dir}/%08d.png",
-                "-i", str(video_path),
-                "-map", "0:v", "-map", "1:a:0?",
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                "-pix_fmt", "yuv420p",
-                str(output_path),
-            ]
-            proc = subprocess.run(cmd, capture_output=True, timeout=600)
-            if proc.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
-                print(f"[burn/pillow] ✅ OK — {output_path.stat().st_size // 1024} KB")
+            if proc.returncode == 0 and out.exists() and out.stat().st_size > 0:
+                print(f"[burn/{label}] ✅ OK — {out.stat().st_size // 1024} KB")
                 return True
-            print(f"[burn/pillow] ❌ code={proc.returncode}")
-            return False
-
-    except Exception as e:
-        print(f"[burn/pillow] ❌ Erreur : {e}")
+            err = (proc.stderr or b"").decode("utf-8", errors="replace")[-400:]
+            print(f"[burn/{label}] ⚠️  FFmpeg code={proc.returncode}: {err}")
+            out.unlink(missing_ok=True)
+        except subprocess.TimeoutExpired:
+            print(f"[burn/{label}] ❌ Timeout (600 s)")
+            out.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[burn/{label}] ❌ Exception : {e}")
+            out.unlink(missing_ok=True)
         return False
+
+    # ── Générer le fichier ASS ─────────────────────────────────────────────
+    ass_path: Optional[Path] = None
+    try:
+        srt_content  = srt_path.read_text(encoding="utf-8")
+        vid_w, vid_h = _get_video_dims(video_path)
+        ass_content  = _srt_to_ass(srt_content, vid_w, vid_h)
+        ass_path     = srt_path.parent / "translated.ass"
+        ass_path.write_text(ass_content, encoding="utf-8")
+        print(f"[burn] ✍️  ASS généré ({len(ass_content)} chars, {vid_w}×{vid_h})")
+    except Exception as e:
+        print(f"[burn] ⚠️  Conversion ASS échouée : {e}")
+
+    # ── Passe 1 : incruster les sous-titres via -vf  ──────────────────────
+    # NOTE : on utilise -vf (NOT filter_complex) pour éviter les problèmes
+    # de parsing des chemins entre guillemets simples dans filter_complex.
+    subs_ok   = False
+    base_in   = video_path  # la source pour la passe 2 est modifiable
+
+    if ass_path and ass_path.exists() and _LIBASS_OK:
+        # Le chemin ASS ne doit pas contenir de ':' ni de caractères spéciaux.
+        # Les UUIDs ne contiennent que des [a-z0-9-] → safe sans quotes.
+        ass_str = str(ass_path).replace("\\", "/")
+        cmd = [
+            ffmpeg, "-y", "-nostdin", "-i", str(video_path),
+            "-vf", f"ass={ass_str},format=yuv420p",
+            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+            "-c:a", "copy", "-movflags", "+faststart",
+            str(inter_path),
+        ]
+        subs_ok = _run(cmd, "ass-vf", inter_path)
+        if not subs_ok:
+            print("[burn] ⚠️  Mode ASS échoué → fallback SRT")
+
+    if not subs_ok and _LIBASS_OK:
+        srt_str   = str(srt_path).replace("\\", "/")
+        style_str = (
+            "BorderStyle=3,BackColour=&H80000000,"
+            "PrimaryColour=&H00FFFFFF,FontSize=20,"
+            "Outline=0,MarginV=25,Fontname=Arial"
+        )
+        cmd = [
+            ffmpeg, "-y", "-nostdin", "-i", str(video_path),
+            "-vf", f"subtitles={srt_str}:force_style={style_str},format=yuv420p",
+            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+            "-c:a", "copy", "-movflags", "+faststart",
+            str(inter_path),
+        ]
+        subs_ok = _run(cmd, "srt-vf", inter_path)
+        if not subs_ok:
+            print("[burn] ⚠️  Mode SRT échoué → sous-titres abandonnés")
+
+    # Si AUCUN mode de sous-titres n'a fonctionné → passe 2 sur la source originale
+    if subs_ok:
+        base_in = inter_path
+    else:
+        base_in = video_path
+
+    # ── Passe 2 : overlay watermark ───────────────────────────────────────
+    if wm_path and wm_path.exists():
+        cmd = [
+            ffmpeg, "-y", "-nostdin",
+            "-i", str(base_in), "-i", str(wm_path),
+            "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
+            "-map", "[out]", "-map", "0:a:0?",
+            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+            "-c:a", "copy", "-movflags", "+faststart",
+            str(output_path),
+        ]
+        ok = _run(cmd, "wm-overlay", output_path)
+        inter_path.unlink(missing_ok=True)
+        if ok:
+            return True
+        print("[burn] ⚠️  Overlay watermark échoué → copie base_in")
+
+    # ── Cas sans watermark ou si overlay échoué ────────────────────────────
+    if subs_ok:
+        # On a les sous-titres mais pas le watermark → on garde l'intermédiaire
+        shutil.move(str(inter_path), str(output_path))
+        return output_path.exists() and output_path.stat().st_size > 0
+
+    # ── Dernier recours : copie directe de la source ───────────────────────
+    print("[burn] ⚠️  Copie directe de la source (aucun rendu possible)")
+    shutil.copy2(video_path, output_path)
+    return output_path.exists() and output_path.stat().st_size > 0
 
 
 # ─── Pipeline principal ───────────────────────────────────────────────────────
@@ -395,20 +438,18 @@ async def process_video(
     user_id: str,
 ) -> dict:
     """
-    Pipeline complet : download → transcribe → filter → summarize → translate → burn → watermark → upload
-    Met à jour la DB à chaque étape.
+    Pipeline complet : download → transcribe → filter → summarize → translate → burn → upload
+    Utilise direct_connect() (connexion asyncpg directe, sans pool) pour éviter
+    les conflits de boucle d'événements dans les workers Celery.
     """
-    from core.db import get_conn, init_pool
+    from core.db import direct_connect
     from core.openrouter import translate_srt, generate_summary
-    from core.watermark import add_watermark_video, _generate_watermark_png
+    from core.watermark import _generate_watermark_png
     from core.supabase_storage import upload_video
     from core.whisper_hallucination_filter import (
         filter_srt_segments,
         filter_srt_with_llm,
-        filter_transcript_text,
     )
-
-    await init_pool()
 
     tmp_base = Path(settings.LOCAL_TEMP_DIR)
     tmp_base.mkdir(parents=True, exist_ok=True)
@@ -422,12 +463,15 @@ async def process_video(
     burned_mp4     = workdir / "burned.mp4"
     final_mp4      = workdir / "final.mp4"
 
-    async def _set_status(status: str, **kwargs):
+    jid = uuid.UUID(job_id)
+
+    async def _set_status(status: str, **kwargs) -> None:
+        """Met à jour le statut du job — utilise une connexion directe."""
         try:
-            async with get_conn() as conn:
+            async with direct_connect() as conn:
                 sets = ["status=$2", "updated_at=now()"]
-                vals = [uuid.UUID(job_id), status]
-                idx  = 3
+                vals: list = [jid, status]
+                idx = 3
                 for k, v in kwargs.items():
                     sets.append(f"{k}=${idx}")
                     vals.append(v)
@@ -440,55 +484,53 @@ async def process_video(
             print(f"[pipeline] ⚠️  DB status update ignoré: {e}")
 
     try:
-        # ── 1. Vérifier durée pré-download via yt-dlp (rapide) ─────────────────
+        # ── 1. Téléchargement ─────────────────────────────────────────────────
         await _set_status("downloading")
         print(f"[pipeline] ⬇️  Téléchargement {source_url}")
 
         import yt_dlp
         ydl_opts = {
-            "format":   "best[height<=720][ext=mp4]/best[height<=720]/best",
-            "outtmpl":  str(workdir / "source.%(ext)s"),
-            "quiet":    True,
+            "format":      "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "outtmpl":     str(workdir / "source.%(ext)s"),
+            "quiet":       True,
             "no_warnings": True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([source_url])
 
-        # Trouver le fichier téléchargé
         candidates = list(workdir.glob("source.*"))
         if not candidates:
             raise RuntimeError("yt-dlp n'a produit aucun fichier")
 
-        dl_file = candidates[0]
+        dl_file = sorted(candidates, key=lambda p: p.stat().st_size, reverse=True)[0]
         if dl_file.suffix.lower() != ".mp4":
-            # Convertir en MP4 si nécessaire
             mp4_file = workdir / "source.mp4"
-            ffmpeg   = _ffmpeg_path()
             subprocess.run(
-                [ffmpeg, "-y", "-i", str(dl_file), "-c", "copy", str(mp4_file)],
+                [_ffmpeg_path(), "-y", "-i", str(dl_file), "-c", "copy", str(mp4_file)],
                 capture_output=True, timeout=120,
             )
             if mp4_file.exists() and mp4_file.stat().st_size > 0:
                 dl_file.unlink(missing_ok=True)
-                dl_file = mp4_file
             else:
-                dl_file = dl_file.rename(source_mp4)
+                dl_file.rename(source_mp4)
         else:
             if dl_file != source_mp4:
                 dl_file.rename(source_mp4)
 
-        # ── Vérifier durée ────────────────────────────────────────────────────
-        duration = _get_video_duration(source_mp4)
+        # ── Vérifier durée ─────────────────────────────────────────────────
+        duration   = _get_video_duration(source_mp4)
         video_type = "short" if duration <= settings.VIDEO_SHORT_MAX_SECONDS else "long"
 
         if duration > settings.VIDEO_MAX_SECONDS:
-            raise RuntimeError(f"Vidéo trop longue ({duration:.0f}s > {settings.VIDEO_MAX_SECONDS}s max)")
+            raise RuntimeError(
+                f"Vidéo trop longue ({duration:.0f}s > {settings.VIDEO_MAX_SECONDS}s max)"
+            )
 
         await _set_status("transcribing", duration_s=round(duration, 1), video_type=video_type)
         print(f"[pipeline] ⏱  Durée: {duration:.1f}s — type: {video_type}")
 
-        # ── 2. Transcription Groq ─────────────────────────────────────────────
-        groq_key = settings.GROQ_API_KEY
+        # ── 2. Transcription ──────────────────────────────────────────────────
+        groq_key       = settings.GROQ_API_KEY
         whisper_result = None
         if groq_key:
             whisper_result = await asyncio.to_thread(
@@ -496,27 +538,27 @@ async def process_video(
             )
 
         if not whisper_result:
-            raise RuntimeError("Transcription échouée (Groq indisponible)")
+            raise RuntimeError("Transcription audio échouée")
 
         source_lang   = whisper_result.get("language", "en")
         transcript_tx = whisper_result.get("text", "")
         print(f"[pipeline] 🎤 Transcription OK — langue={source_lang} ({len(transcript_tx)} chars)")
 
-        # ── 3. Hallucination filter ───────────────────────────────────────────
+        # ── 3. Filtre hallucinations ──────────────────────────────────────────
         _no_audio = False
         if source_srt.exists() and source_srt.stat().st_size > 0:
-            srt_raw     = source_srt.read_text(encoding="utf-8")
-            blocks      = _parse_srt(srt_raw)
+            srt_raw = source_srt.read_text(encoding="utf-8")
+            blocks  = _parse_srt(srt_raw)
 
-            # Phase regex
             cleaned_blocks, removed_regex = filter_srt_segments(blocks)
             if removed_regex:
                 print(f"[pipeline] 🧹 {len(removed_regex)} hallucination(s) regex supprimée(s)")
                 source_srt.write_text(_write_srt(cleaned_blocks), encoding="utf-8")
 
-            # Phase LLM
             if cleaned_blocks:
-                kept_llm, removed_llm, is_valid = await filter_srt_with_llm(cleaned_blocks, transcript_tx)
+                kept_llm, removed_llm, is_valid = await filter_srt_with_llm(
+                    cleaned_blocks, transcript_tx
+                )
                 if not is_valid:
                     _no_audio = True
                     print("[pipeline] 🔇 LLM : aucun contenu audio valide")
@@ -528,7 +570,7 @@ async def process_video(
         else:
             _no_audio = True
 
-        # ── 4. Résumé LLM ─────────────────────────────────────────────────────
+        # ── 4. Résumé ─────────────────────────────────────────────────────────
         summary = None
         if transcript_tx and not _no_audio:
             try:
@@ -540,7 +582,6 @@ async def process_video(
         await _set_status("translating", summary=summary, source_lang=source_lang)
 
         # ── 5. Traduction SRT ─────────────────────────────────────────────────
-        translated_srt_content = None
         if not _no_audio and source_srt.exists() and source_srt.stat().st_size > 0:
             srt_content = source_srt.read_text(encoding="utf-8")
             if source_lang != target_lang:
@@ -548,17 +589,19 @@ async def process_video(
                     srt_content, source_lang, target_lang,
                     context={"src_lang": source_lang},
                 )
-                if translated_srt_content:
-                    translated_srt.write_text(translated_srt_content, encoding="utf-8")
-                else:
-                    # Fallback : utiliser SRT source
+                if not translated_srt_content:
                     translated_srt_content = srt_content
-                    translated_srt.write_text(srt_content, encoding="utf-8")
             else:
                 translated_srt_content = srt_content
-                translated_srt.write_text(srt_content, encoding="utf-8")
 
-        # ── 6. Watermark PNG (généré une fois) ────────────────────────────────
+            offset_ms = int(os.environ.get("SRT_TIMING_OFFSET_MS", "200"))
+            if offset_ms:
+                translated_srt_content = _shift_srt_timing(translated_srt_content, offset_ms)
+                print(f"[pipeline] ⏰ Timing SRT décalé de +{offset_ms}ms")
+
+            translated_srt.write_text(translated_srt_content, encoding="utf-8")
+
+        # ── 6. Watermark PNG ──────────────────────────────────────────────────
         wm_path: Optional[Path] = None
         try:
             vid_w, vid_h = _get_video_dims(source_mp4)
@@ -566,29 +609,40 @@ async def process_video(
             if wm_bytes:
                 wm_path = workdir / "watermark.png"
                 wm_path.write_bytes(wm_bytes)
+                print(f"[pipeline] 🖼  Watermark PNG généré ({vid_w}×{vid_h})")
         except Exception as e:
             print(f"[pipeline] ⚠️  Watermark PNG ignoré: {e}")
 
-        # ── 7. Burn sous-titres ───────────────────────────────────────────────
+        # ── 7. Burn sous-titres (2 passes) ────────────────────────────────────
         await _set_status("burning")
+        print("[pipeline] 🎬 Burn sous-titres + watermark en cours…")
 
         if translated_srt.exists() and translated_srt.stat().st_size > 0:
             burn_ok = await asyncio.to_thread(
                 _burn_subtitles, source_mp4, translated_srt, burned_mp4, wm_path
             )
         else:
-            # Pas de sous-titres → watermark seul sur vidéo originale
             burn_ok = False
-            if wm_path:
-                wm_bytes_final = wm_path.read_bytes()
-                result_bytes   = await asyncio.to_thread(
-                    add_watermark_video, source_mp4.read_bytes()
+            if wm_path and wm_path.exists():
+                cmd = [
+                    _ffmpeg_path(), "-y", "-nostdin",
+                    "-i", str(source_mp4), "-i", str(wm_path),
+                    "-filter_complex",
+                    "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
+                    "-map", "[out]", "-map", "0:a:0?",
+                    "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                    "-c:a", "copy", "-movflags", "+faststart",
+                    str(burned_mp4),
+                ]
+                proc = subprocess.run(
+                    cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=600
                 )
-                if result_bytes:
-                    burned_mp4.write_bytes(result_bytes)
-                    burn_ok = True
+                burn_ok = (
+                    proc.returncode == 0
+                    and burned_mp4.exists()
+                    and burned_mp4.stat().st_size > 0
+                )
             if not burn_ok:
-                # Copier la source sans modification
                 import shutil
                 shutil.copy2(source_mp4, burned_mp4)
                 burn_ok = True
@@ -596,43 +650,47 @@ async def process_video(
         if not burn_ok or not burned_mp4.exists():
             raise RuntimeError("Burn sous-titres échoué")
 
-        # final_mp4 = burned_mp4 (le watermark est déjà intégré via _burn_subtitles)
+        print(f"[pipeline] ✅ Burn OK — {burned_mp4.stat().st_size // 1024} KB")
+
         import shutil
         shutil.copy2(burned_mp4, final_mp4)
 
         # ── 8. Upload Supabase Storage ────────────────────────────────────────
         await _set_status("uploading")
+        ts              = datetime.now().strftime("%Y%m%d_%H%M%S")
+        upload_filename = f"translated_{ts}.mp4"
+        print(f"[pipeline] ⬆️  Upload → {upload_filename}")
+
         upload_result = await upload_video(
-            job_id, final_mp4.read_bytes(), filename="output.mp4"
+            job_id, final_mp4.read_bytes(), filename=upload_filename
         )
 
         if not upload_result:
-            # Fallback : pas de Supabase configuré → URL locale (dev)
-            storage_key = f"local/{job_id}/output.mp4"
+            storage_key = f"local/{job_id}/{upload_filename}"
             storage_url = f"file://{final_mp4}"
         else:
             storage_key = upload_result["storage_key"]
             storage_url = upload_result["storage_url"]
 
-        # ── 9. Finalisation DB ────────────────────────────────────────────────
-        async with get_conn() as conn:
+        # ── 9. Finalisation DB — connexion directe ────────────────────────────
+        async with direct_connect() as conn:
             await conn.execute(
                 """
                 UPDATE jobs SET
-                    status='done',
-                    storage_key=$2,
-                    storage_url=$3,
-                    source_lang=$4,
-                    updated_at=now()
-                WHERE id=$1
+                    status      = 'done',
+                    storage_key = $2,
+                    storage_url = $3,
+                    source_lang = $4,
+                    updated_at  = now()
+                WHERE id = $1
                 """,
-                uuid.UUID(job_id), storage_key, storage_url, source_lang,
+                jid, storage_key, storage_url, source_lang,
             )
 
         print(f"[pipeline] ✅ Job {job_id[:8]}… terminé — {storage_key}")
         return {
-            "job_id":     job_id,
-            "status":     "done",
+            "job_id":      job_id,
+            "status":      "done",
             "storage_url": storage_url,
             "source_lang": source_lang,
             "duration_s":  round(duration, 1),
@@ -643,17 +701,16 @@ async def process_video(
     except Exception as exc:
         print(f"[pipeline] ❌ Job {job_id[:8]}… échoué: {exc}")
         try:
-            async with get_conn() as conn:
+            async with direct_connect() as conn:
                 await conn.execute(
                     "UPDATE jobs SET status='error', error_msg=$2, updated_at=now() WHERE id=$1",
-                    uuid.UUID(job_id), str(exc),
+                    jid, str(exc)[:500],
                 )
         except Exception:
             pass
         raise
 
     finally:
-        # Nettoyage /tmp
         if os.environ.get("DEBUG_KEEP_TEMP", "false").lower() != "true":
             import shutil
             shutil.rmtree(workdir, ignore_errors=True)

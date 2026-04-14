@@ -1,6 +1,5 @@
 """
-core/db.py — Pool asyncpg — x-translator-mvp
-Copié depuis conflict-map/backend/core/db.py
+core/db.py — Pool asyncpg + connexion directe — x-translator-mvp
 """
 from __future__ import annotations
 
@@ -43,3 +42,18 @@ async def get_conn() -> AsyncGenerator[asyncpg.Connection, None]:
         await init_pool()
     async with _pool.acquire() as conn:
         yield conn
+
+
+@asynccontextmanager
+async def direct_connect() -> AsyncGenerator[asyncpg.Connection, None]:
+    """
+    Connexion directe asyncpg (sans pool).
+    Utilisée dans les tâches Celery pour éviter les conflits de boucle
+    d'événements entre asyncio.run() et le pool singleton.
+    """
+    url = settings.DATABASE_URL_POOLER or settings.DATABASE_URL
+    conn = await asyncpg.connect(url, statement_cache_size=0, command_timeout=60)
+    try:
+        yield conn
+    finally:
+        await conn.close()

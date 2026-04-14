@@ -2,12 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 
-// ── Auth JWT — backend FastAPI ──────────────────────────────
+// ── Auth JWT — backend FastAPI / Supabase ────────────────────────────────────
 // Token stocké dans localStorage (clé: access_token)
-// Endpoints :
-//   POST /auth/login    → { email, password } → { access_token }
-//   POST /auth/register → { email, password } → { access_token } ou message email
-//   GET  /auth/me       → Authorization: Bearer <token> → { user }
 
 const LS_TOKEN_KEY = "access_token";
 const LS_USER_KEY  = "xt_user";
@@ -23,6 +19,8 @@ function saveToStorage(token: string, user: AuthUser) {
   if (typeof window === "undefined") return;
   localStorage.setItem(LS_TOKEN_KEY, token);
   localStorage.setItem(LS_USER_KEY, JSON.stringify(user));
+  // Notifie les autres instances du hook dans le même onglet
+  window.dispatchEvent(new Event("storage"));
 }
 
 function loadFromStorage(): { user: AuthUser | null; token: string | null } {
@@ -41,6 +39,7 @@ function clearStorage() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(LS_TOKEN_KEY);
   localStorage.removeItem(LS_USER_KEY);
+  window.dispatchEvent(new Event("storage"));
 }
 
 export function useAuth() {
@@ -49,7 +48,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
-  // Hydratation initiale
+  // ── Hydratation initiale ──────────────────────────────────────────────────
   useEffect(() => {
     const stored = loadFromStorage();
     if (stored.token) {
@@ -61,64 +60,106 @@ export function useAuth() {
       })
         .then(r => r.ok ? r.json() : null)
         .then(u => {
-          if (u) { const usr = { id: u.id, email: u.email }; setUser(usr); saveToStorage(stored.token!, usr); }
-          else   { clearStorage(); setUser(null); setToken(null); }
+          if (u) {
+            const usr = { id: u.id, email: u.email };
+            setUser(usr);
+            saveToStorage(stored.token!, usr);
+          } else {
+            clearStorage();
+            setUser(null);
+            setToken(null);
+          }
         })
-        .catch(() => { /* keep cached user if network error */ })
+        .catch(() => { /* keep cached user si réseau indisponible */ })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, []);
 
+  // ── Listener storage — synchronise tous les composants du même onglet ─────
+  useEffect(() => {
+    function handleStorageChange() {
+      const stored = loadFromStorage();
+      if (stored.token && stored.user) {
+        setToken(stored.token);
+        setUser(stored.user);
+      } else if (!stored.token) {
+        setToken(null);
+        setUser(null);
+      }
+    }
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // ── Login ─────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || "Identifiants incorrects"); }
+      if (!r.ok) {
+        const e = await r.json();
+        throw new Error(e.detail || "Identifiants incorrects");
+      }
       const data = await r.json();
       if (data.access_token) {
         const u: AuthUser = { id: data.user?.id ?? "", email };
         saveToStorage(data.access_token, u);
         setToken(data.access_token);
         setUser(u);
-        return data;
       }
       return data;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur inconnue";
-      setError(msg); throw e;
-    } finally { setLoading(false); }
+      setError(msg);
+      throw e;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  // ── Register ──────────────────────────────────────────────────────────────
   const register = useCallback(async (email: string, password: string) => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || "Erreur lors de l'inscription"); }
+      if (!r.ok) {
+        const e = await r.json();
+        throw new Error(e.detail || "Erreur lors de l'inscription");
+      }
       const data = await r.json();
       if (data.access_token) {
         const u: AuthUser = { id: data.user?.id ?? "", email };
         saveToStorage(data.access_token, u);
-        setToken(data.access_token); setUser(u);
+        setToken(data.access_token);
+        setUser(u);
       }
       return data;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur inconnue";
-      setError(msg); throw e;
-    } finally { setLoading(false); }
+      setError(msg);
+      throw e;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
-    clearStorage(); setUser(null); setToken(null);
+    clearStorage();
+    setUser(null);
+    setToken(null);
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

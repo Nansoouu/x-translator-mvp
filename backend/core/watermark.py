@@ -1,16 +1,12 @@
 """
-core/watermark.py — Filigrane vidéo + photo — x-translator-mvp
-Copié depuis conflict-map/backend/core/watermark.py
-Watermark par défaut : "spottedyou.org"
-
-Dépendances : Pillow, ffmpeg, ffprobe
+core/watermark.py — Filigrane vidéo — x-translator-mvp
+Watermark : "Translated by spottedyou.org" en haut à droite
+Dépendances : Pillow
 """
 from __future__ import annotations
 
 import io
 import os
-import subprocess
-import tempfile
 from typing import Optional
 
 from core.config import settings
@@ -33,74 +29,61 @@ def _get_font_path() -> Optional[str]:
     return None
 
 
-def _build_tile(
-    text: str,
-    font_size: int,
-    opacity: int,
-) -> "PIL.Image.Image":
-    from PIL import Image, ImageDraw, ImageFont
-
-    FILL_COLOR   = (255, 255, 255, opacity)
-    STROKE_COLOR = (0, 0, 0, max(0, opacity - 25))
-    TILE_W, TILE_H = 500, 110
-
-    font_path = _get_font_path()
-    try:
-        font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
-    except Exception:
-        font = ImageFont.load_default()
-
-    tile = Image.new("RGBA", (TILE_W, TILE_H), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(tile)
-
-    try:
-        bbox   = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-    except AttributeError:
-        text_w, text_h = draw.textsize(text, font=font)
-
-    tx = (TILE_W - text_w) // 2
-    ty = (TILE_H - text_h) // 2
-
-    try:
-        draw.text((tx, ty), text, font=font, fill=FILL_COLOR, stroke_width=1, stroke_fill=STROKE_COLOR)
-    except TypeError:
-        draw.text((tx + 1, ty + 1), text, font=font, fill=STROKE_COLOR)
-        draw.text((tx, ty), text, font=font, fill=FILL_COLOR)
-
-    return tile
-
-
 def _generate_watermark_png(
     width: int,
     height: int,
     text: Optional[str] = None,
-    opacity: int = 185,
+    opacity: int = 210,
 ) -> Optional[bytes]:
-    """Génère un PNG RGBA transparent aux dimensions (width × height) avec la grille watermark."""
+    """
+    Génère un PNG RGBA transparent (width × height) avec le watermark
+    en haut à droite dans un badge noir semi-transparent.
+    """
     if text is None:
         text = settings.WATERMARK_TEXT
 
     try:
-        from PIL import Image
+        from PIL import Image, ImageDraw, ImageFont
 
-        font_size = max(18, min(24, width // 50))
-        tile      = _build_tile(text, font_size, opacity)
+        # Police petite (12-14px selon résolution)
+        font_size  = max(11, min(14, width // 90))
+        font_path  = _get_font_path()
+        try:
+            font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+        except Exception:
+            font = ImageFont.load_default()
 
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-        TILE_W, TILE_H = tile.size
+        draw    = ImageDraw.Draw(overlay)
 
-        row = 0
-        for ty_pos in range(0, height + TILE_H, TILE_H):
-            x_offset = (TILE_W // 2) if (row % 2 == 1) else 0
-            for tx_pos in range(-TILE_W + x_offset, width + TILE_W, TILE_W):
-                overlay.paste(tile, (tx_pos, ty_pos), tile)
-            row += 1
+        # Mesurer le texte
+        try:
+            bbox   = draw.textbbox((0, 0), text, font=font)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+        except AttributeError:
+            text_w, text_h = draw.textsize(text, font=font)
+
+        padding = 5
+        margin  = 8
+
+        # Position haut-droite
+        x = width - text_w - padding * 2 - margin
+        y = margin
+
+        # Badge arrière-plan noir semi-transparent
+        draw.rectangle(
+            [x - padding, y - padding, x + text_w + padding, y + text_h + padding],
+            fill=(0, 0, 0, 170),
+        )
+
+        # Texte blanc
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, opacity))
 
         buf = io.BytesIO()
         overlay.save(buf, format="PNG")
         return buf.getvalue()
+
     except Exception as e:
         print(f"[watermark] ⚠️  _generate_watermark_png erreur : {e}")
         return None
@@ -109,13 +92,16 @@ def _generate_watermark_png(
 def add_watermark_video(
     video_bytes: bytes,
     text: Optional[str] = None,
-    opacity: int = 185,
+    opacity: int = 210,
     timeout: int = 180,
 ) -> Optional[bytes]:
     """
-    Ajoute un filigrane en grille sur une vidéo MP4 via Pillow + FFmpeg.
+    Ajoute un filigrane haut-droite sur une vidéo MP4 via Pillow + FFmpeg.
     Pipeline : ffprobe dims → Pillow PNG → FFmpeg overlay → MP4
     """
+    import subprocess
+    import tempfile
+
     if text is None:
         text = settings.WATERMARK_TEXT
 
@@ -137,7 +123,7 @@ def add_watermark_video(
             vid_w, vid_h = 1920, 1080
             if probe.returncode == 0 and probe.stdout:
                 try:
-                    parts    = probe.stdout.decode().strip().split(",")
+                    parts        = probe.stdout.decode().strip().split(",")
                     vid_w, vid_h = int(parts[0]), int(parts[1])
                 except Exception:
                     pass
@@ -161,7 +147,7 @@ def add_watermark_video(
                 "-c:a", "copy", "-movflags", "+faststart",
                 out_path,
             ]
-            proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
+            proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout)
 
             if proc.returncode == 0 and os.path.exists(out_path):
                 size = os.path.getsize(out_path)
