@@ -72,8 +72,13 @@ PROMPT_SUMMARY = (
 
 def _clean_json(raw: str) -> str:
     raw = raw.strip()
+    # Enlever les balises markdown code
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
+    # Sanitize les valeurs JSON invalides (NaN, Infinity) → null
+    raw = re.sub(r"\bNaN\b",       "null", raw)
+    raw = re.sub(r"\bInfinity\b",  "null", raw)
+    raw = re.sub(r"-\bInfinity\b", "null", raw)
     return raw.strip()
 
 

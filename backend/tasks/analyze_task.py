@@ -93,15 +93,32 @@ async def _analyze(project_id: str) -> None:
         await _set_status("analyzing")
 
         # ── 2. Récupérer / réutiliser la transcription ───────────────────────
+        # Note : jobs.summary = résumé 2-3 phrases, trop court pour l'analyse.
+        # On ne l'utilise QUE si la transcription complète est > 500 chars.
         if not transcript and source_job_id:
             async with direct_connect() as conn:
                 job_row = await conn.fetchrow(
-                    "SELECT summary, source_url FROM jobs WHERE id=$1", source_job_id
+                    "SELECT summary, source_url, duration_s FROM jobs WHERE id=$1",
+                    source_job_id,
                 )
             if job_row:
-                transcript = job_row["summary"] or ""
+                duration_s = job_row["duration_s"] or 0
+                full_text  = job_row["summary"] or ""
                 if not source_url:
                     source_url = job_row["source_url"]
+
+                # Vérification durée minimale (60s) avant de continuer
+                if duration_s < 60:
+                    raise RuntimeError(
+                        f"Vidéo trop courte ({int(duration_s)}s). "
+                        "Le Studio IA nécessite une vidéo d'au moins 1 minute "
+                        "(2 min recommandé) pour détecter des moments forts."
+                    )
+
+                # N'utiliser le summary que s'il est suffisamment long (transcription complète)
+                if len(full_text) >= 500:
+                    transcript = full_text
+                # Sinon on laisse transcript vide → re-transcription Groq ci-dessous
 
         if not transcript and source_url:
             # Télécharge + transcrit si pas encore disponible
