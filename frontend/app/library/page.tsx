@@ -629,9 +629,10 @@ export default function LibraryPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const t = useTranslations('LibraryPage');
   const tC = useTranslations('Common');
-  const [myJobs,     setMyJobs]     = useState<any[]>([]);
-  const [publicJobs, setPublicJobs] = useState<any[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const [myJobs,        setMyJobs]        = useState<any[]>([]);
+  const [publicJobs,    setPublicJobs]    = useState<any[]>([]);
+  const [publicLoading, setPublicLoading] = useState(true);
+  const [myLoading,     setMyLoading]     = useState(false);
 
   // Modal état
   const [modalGroup,     setModalGroup]     = useState<GroupedVideo | null>(null);
@@ -649,19 +650,21 @@ export default function LibraryPage() {
     setInitialLang(undefined);
   }, []);
 
+  // Charger la bibliothèque publique immédiatement, sans attendre l'auth
+  useEffect(() => {
+    getPublicLibrary()
+      .then((pub) => setPublicJobs(pub || []))
+      .finally(() => setPublicLoading(false));
+  }, []);
+
+  // Charger les jobs utilisateur uniquement quand l'auth est résolue
   useEffect(() => {
     if (authLoading) return;
     if (isAuthenticated) {
-      Promise.all([listUserJobs(), getPublicLibrary()])
-        .then(([mine, pub]) => {
-          setMyJobs(mine || []);
-          setPublicJobs(pub || []);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      getPublicLibrary()
-        .then((pub) => setPublicJobs(pub || []))
-        .finally(() => setLoading(false));
+      setMyLoading(true);
+      listUserJobs()
+        .then((mine) => setMyJobs(mine || []))
+        .finally(() => setMyLoading(false));
     }
   }, [isAuthenticated, authLoading]);
 
@@ -681,7 +684,7 @@ export default function LibraryPage() {
     setTimeout(() => setAddLangMsg(null), 4000);
   }, [isAuthenticated]);
 
-  if (loading || authLoading) return <LoadingScreen />;
+  if (publicLoading) return <LoadingScreen />;
 
   const allMyGroups    = groupJobs(myJobs);
   const activeGroups   = allMyGroups.filter((g) => g.variants.some((v) => ACTIVE_STATUSES.has(v.status)));
