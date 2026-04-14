@@ -7,6 +7,7 @@ from core.db import init_pool, close_pool
 from api.auth import router as auth_router
 from api.jobs import router as jobs_router
 from api.billing import router as billing_router
+from api.studio import router as studio_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +21,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
 app.include_router(auth_router)
 app.include_router(jobs_router)
 app.include_router(billing_router)
+app.include_router(studio_router)
 
 @app.get("/health")
 async def health():
