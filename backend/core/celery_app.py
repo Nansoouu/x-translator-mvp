@@ -8,7 +8,11 @@ celery_app = Celery(
     "x_translator",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["tasks.pipeline_task"],
+    include=[
+        "tasks.pipeline_task",
+        "tasks.analyze_task",
+        "tasks.export_task",
+    ],
 )
 
 celery_app.conf.update(
@@ -21,6 +25,8 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_routes={
-        "tasks.pipeline_task.process_video_task": {"queue": "video_processing"},
+        "tasks.pipeline_task.process_video_task":    {"queue": "video_processing"},
+        "tasks.analyze_task.analyze_video_task":     {"queue": "video_processing"},
+        "tasks.export_task.export_clips_task":       {"queue": "video_processing"},
     },
 )
