@@ -156,7 +156,10 @@ async def _export(export_id: str) -> None:
                 filename=f"studio_clip_{clip_id[:8]}_{fmt.replace(':', 'x')}.mp4",
             )
 
-            clip_url = upload_res["storage_url"] if upload_res else f"file://{final_path}"
+            if not upload_res:
+                print(f"[export_task] ⚠️  Upload Supabase échoué pour clip {clip_id[:8]} — clip ignoré")
+                continue
+            clip_url = upload_res["storage_url"]
 
             output_urls.append({
                 "clip_id":   clip_id,

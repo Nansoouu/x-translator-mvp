@@ -137,7 +137,7 @@ async def get_project(project_id: str, user=Depends(get_current_user)):
         proj = await conn.fetchrow(
             """
             SELECT id, source_url, source_job_id, source_title,
-                   status, error_msg, transcript, created_at
+                   status, error_msg, transcript, ai_advice, created_at
             FROM studio_projects WHERE id=$1 AND user_id=$2
             """,
             pid, uuid.UUID(user["id"]),
@@ -156,10 +156,22 @@ async def get_project(project_id: str, user=Depends(get_current_user)):
             pid,
         )
 
+        # Récupérer l'URL Supabase de la vidéo source (pour le lecteur frontend)
+        source_storage_url = None
+        source_job_id_val  = proj["source_job_id"]
+        if source_job_id_val:
+            job_row = await conn.fetchrow(
+                "SELECT storage_url FROM jobs WHERE id=$1",
+                source_job_id_val,
+            )
+            if job_row:
+                source_storage_url = job_row["storage_url"]
+
     d = dict(proj)
-    d["id"]             = str(d["id"])
-    d["source_job_id"]  = str(d["source_job_id"]) if d["source_job_id"] else None
-    d.pop("transcript", None)  # pas besoin côté frontend
+    d["id"]                 = str(d["id"])
+    d["source_job_id"]      = str(d["source_job_id"]) if d["source_job_id"] else None
+    d["source_storage_url"] = source_storage_url   # URL Supabase pour le player
+    d.pop("transcript", None)                       # pas besoin côté frontend
     d["clips"] = _clips_from_rows(clips_rows)
 
     return d

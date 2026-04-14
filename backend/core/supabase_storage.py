@@ -4,6 +4,7 @@ Adapté depuis conflict-map. Bucket : "translated-videos"
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 import httpx
@@ -51,17 +52,11 @@ async def upload_video(
     upload_url  = f"{supabase_url}/storage/v1/object/{bucket}/{storage_key}"
 
     # ── Déterminer taille + contenu ───────────────────────────────────────────
+    # Note : httpx.AsyncClient exige bytes ou async iterable.
+    # On lit le fichier en bytes via un thread pour ne pas bloquer l'event loop.
     if isinstance(video_source, _Path):
-        size = video_source.stat().st_size
-        # Streaming par chunks — ne charge PAS tout en RAM
-        def _file_stream(path: _Path, chunk: int = 8 * 1024 * 1024):
-            with open(path, "rb") as f:
-                while True:
-                    data = f.read(chunk)
-                    if not data:
-                        break
-                    yield data
-        content = _file_stream(video_source)
+        size    = video_source.stat().st_size
+        content = await asyncio.to_thread(video_source.read_bytes)
     else:
         size    = len(video_source)
         content = video_source

@@ -19,8 +19,9 @@ from core.celery_app import celery_app
 STUDIO_ANALYSIS_PROMPT = """Tu es un expert TikTok/Reels/Shorts 2026 spécialisé dans la création de contenu viral.
 Analyse cette transcription vidéo et identifie entre 5 et 8 moments forts viraux.
 
-Pour chaque moment, retourne un JSON strict (UNIQUEMENT le JSON, sans texte autour) :
+Retourne un JSON strict (UNIQUEMENT le JSON, sans texte autour) :
 {
+  "ai_advice": "conseil stratégique en 1-2 phrases : quel type de contenu TikTok cette vidéo permet de créer, et comment maximiser son impact",
   "clips": [
     {
       "start_s": float,
@@ -156,7 +157,9 @@ async def _analyze(project_id: str) -> None:
         if not result or "clips" not in result:
             raise RuntimeError("L'IA n'a pas retourné de clips valides")
 
-        clips = result["clips"]
+        clips      = result["clips"]
+        ai_advice  = result.get("ai_advice", "")
+
         if not clips:
             raise RuntimeError("Aucun moment fort détecté")
 
@@ -164,6 +167,12 @@ async def _analyze(project_id: str) -> None:
 
         # ── 4. Sauvegarde clips en DB ─────────────────────────────────────────
         async with direct_connect() as conn:
+            # Sauvegarder ai_advice sur le projet
+            if ai_advice:
+                await conn.execute(
+                    "UPDATE studio_projects SET ai_advice=$1 WHERE id=$2",
+                    ai_advice, jid,
+                )
             for clip in clips:
                 caption_style = clip.get("caption_style") or {}
                 hashtags = clip.get("hashtags") or []

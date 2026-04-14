@@ -84,6 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_studio_exports_project_id ON studio_exports(proje
 -- Migrations pour bases existantes
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS download_count INTEGER DEFAULT 0;
+ALTER TABLE studio_projects ADD COLUMN IF NOT EXISTS ai_advice TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
