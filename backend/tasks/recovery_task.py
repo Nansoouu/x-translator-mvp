@@ -32,7 +32,8 @@ async def _reset_errors() -> dict:
         # ── 1. Jobs de traduction en erreur (max MAX_RETRIES) ─────────────────
         error_jobs = await conn.fetch(
             """
-            SELECT id, target_lang, COALESCE(retry_count, 0) AS retry_count
+            SELECT id, source_url, target_lang, user_id,
+                   COALESCE(retry_count, 0) AS retry_count
             FROM jobs
             WHERE status = 'error'
               AND COALESCE(retry_count, 0) < $1
@@ -43,16 +44,20 @@ async def _reset_errors() -> dict:
         )
 
         for row in error_jobs:
-            job_id    = str(row["id"])
-            new_count = row["retry_count"] + 1
+            job_id      = str(row["id"])
+            source_url  = row["source_url"]
+            target_lang = row["target_lang"]
+            user_id     = str(row["user_id"]) if row["user_id"] else None
+            new_count   = row["retry_count"] + 1
+
             await conn.execute(
                 "UPDATE jobs SET status='queued', error_msg=NULL, retry_count=$1, updated_at=now() WHERE id=$2",
                 new_count, row["id"],
             )
-            # Re-dispatch la tâche Celery
+            # Re-dispatch avec les mêmes arguments — job_id en premier (réutilise l'entrée DB)
             from tasks.pipeline_task import process_video_task
             process_video_task.apply_async(
-                kwargs={"job_id": job_id},
+                args=[job_id, source_url, target_lang, user_id],
                 queue="video_processing",
             )
             print(f"[recovery] 🔄 Job {job_id[:8]} remis en file (essai {new_count}/{MAX_RETRIES})")
