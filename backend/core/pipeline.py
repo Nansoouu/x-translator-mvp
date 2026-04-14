@@ -364,10 +364,10 @@ def _burn_subtitles(
     if ass_path and ass_path.exists() and _LIBASS_OK:
         # Le chemin ASS ne doit pas contenir de ':' ni de caractères spéciaux.
         # Les UUIDs ne contiennent que des [a-z0-9-] → safe sans quotes.
-        ass_str = str(ass_path).replace("\\", "/")
+        ass_str = str(ass_path).replace("\\", "/").replace("'", "\\'")
         cmd = [
             ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"ass={ass_str}",
+            "-vf", f"ass='{ass_str}'",
             "-pix_fmt", "yuv420p",
             "-c:v", "libx264", "-crf", "18", "-preset", "fast",
             "-c:a", "copy", "-movflags", "+faststart",
@@ -378,7 +378,7 @@ def _burn_subtitles(
             print("[burn] ⚠️  Mode ASS échoué → fallback SRT")
 
     if not subs_ok and _LIBASS_OK:
-        srt_str   = str(srt_path).replace("\\", "/")
+        srt_str   = str(srt_path).replace("\\", "/").replace("'", "\\'")
         style_str = (
             "BorderStyle=3,BackColour=&H80000000,"
             "PrimaryColour=&H00FFFFFF,FontSize=20,"
@@ -386,7 +386,7 @@ def _burn_subtitles(
         )
         cmd = [
             ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"subtitles={srt_str}:force_style='{style_str}'",
+            "-vf", f"subtitles='{srt_str}':force_style='{style_str}'",
             "-pix_fmt", "yuv420p",
             "-c:v", "libx264", "-crf", "18", "-preset", "fast",
             "-c:a", "copy", "-movflags", "+faststart",
