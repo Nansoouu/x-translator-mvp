@@ -59,12 +59,14 @@ export default function Navbar() {
           >
             {t('myVideos')}
           </Link>
-          <Link
-            href="/studio"
-            className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800 hidden sm:block flex items-center gap-1.5"
-          >
-            ✂️ Studio
-          </Link>
+          {mounted && isAuthenticated && (
+            <Link
+              href="/studio"
+              className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800 hidden sm:inline-flex items-center gap-1.5"
+            >
+              ✂️ Studio
+            </Link>
+          )}
           <Link
             href="/billing"
             className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800 hidden sm:block"
