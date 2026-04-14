@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { listUserJobs, getPublicLibrary, submitJob } from '@/lib/api';
+import { listUserJobs, getPublicLibrary, submitJob, createStudioProject } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -409,11 +410,13 @@ function VideoCard({
   showDownload,
   onPlay,
   onAddLang,
+  onOpenInStudio,
 }: {
   g: GroupedVideo;
   showDownload?: boolean;
   onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
+  onOpenInStudio?: (g: GroupedVideo) => void;
 }) {
   const hasAnyDone  = g.variants.some((v) => v.status === 'done');
   const hasActive   = g.variants.some((v) => ACTIVE_STATUSES.has(v.status));
@@ -562,19 +565,31 @@ function VideoCard({
             )}
           </div>
 
-          {/* Bouton DL — ouvre la modale sur la meilleure langue dispo */}
-          {showDownload && hasAnyDone && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onPlay(g); }}
-              title="Voir & Télécharger"
-              className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-emerald-950/60 border border-gray-700 hover:border-emerald-700 text-gray-300 hover:text-emerald-400 transition-all"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              DL
-            </button>
-          )}
+          <div className="flex items-center gap-1.5">
+            {/* Bouton Studio */}
+            {onOpenInStudio && hasAnyDone && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenInStudio(g); }}
+                title="Ouvrir dans le Studio TikTok"
+                className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-violet-950/50 hover:bg-violet-950/80 border border-violet-800/50 hover:border-violet-600 text-violet-400 hover:text-violet-300 transition-all"
+              >
+                ✂️
+              </button>
+            )}
+            {/* Bouton DL — ouvre la modale sur la meilleure langue dispo */}
+            {showDownload && hasAnyDone && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onPlay(g); }}
+                title="Voir & Télécharger"
+                className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-emerald-950/60 border border-gray-700 hover:border-emerald-700 text-gray-300 hover:text-emerald-400 transition-all"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                DL
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -587,11 +602,13 @@ function VideoGrid({
   showDownload = true,
   onPlay,
   onAddLang,
+  onOpenInStudio,
 }: {
   groups: GroupedVideo[];
   showDownload?: boolean;
   onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
+  onOpenInStudio?: (g: GroupedVideo) => void;
 }) {
   if (groups.length === 0) return null;
   return (
@@ -603,6 +620,7 @@ function VideoGrid({
           showDownload={showDownload}
           onPlay={onPlay}
           onAddLang={onAddLang}
+          onOpenInStudio={onOpenInStudio}
         />
       ))}
     </div>
@@ -627,6 +645,7 @@ function LoadingScreen() {
 // ── Page principale ───────────────────────────────────────────────────────────
 export default function LibraryPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
   const t = useTranslations('LibraryPage');
   const tC = useTranslations('Common');
   const [myJobs,        setMyJobs]        = useState<any[]>([]);
@@ -667,6 +686,19 @@ export default function LibraryPage() {
         .finally(() => setMyLoading(false));
     }
   }, [isAuthenticated, authLoading]);
+
+  const handleOpenInStudio = useCallback(async (g: GroupedVideo) => {
+    const jobId = g.best_done_job_id ?? g.variants.find((v) => v.status === 'done')?.job_id;
+    if (!jobId) return;
+    setAddLangMsg('✂️ Ouverture du Studio…');
+    try {
+      const res = await createStudioProject({ source_job_id: jobId });
+      router.push(`/studio/${res.project_id}`);
+    } catch (e: any) {
+      setAddLangMsg(`❌ ${e?.detail || e?.message || 'Erreur Studio'}`);
+      setTimeout(() => setAddLangMsg(null), 4000);
+    }
+  }, [router]);
 
   const handleAddLang = useCallback(async (sourceUrl: string, lang: string) => {
     setAddLangVideo(null);
@@ -772,7 +804,7 @@ export default function LibraryPage() {
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
                       {t('done', { count: doneGroups.length })}
                     </p>
-                    <VideoGrid groups={doneGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={doneGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} onOpenInStudio={handleOpenInStudio} />
                   </div>
                 )}
                 {errorGroups.length > 0 && (

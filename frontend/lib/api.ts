@@ -75,3 +75,47 @@ export async function createCheckout(plan: string) {
   if (!r.ok) throw await r.json();
   return r.json();
 }
+
+// ── Studio ────────────────────────────────────────────────────────────────────
+
+export async function createStudioProject(params: { source_url?: string; source_job_id?: string }) {
+  const r = await fetch(`${API}/studio/projects`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(params),
+  });
+  if (!r.ok) throw await r.json();
+  return r.json();
+}
+
+export async function listStudioProjects() {
+  const r = await fetch(`${API}/studio/projects`, { headers: authHeaders() });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getStudioProject(projectId: string) {
+  const r = await fetch(`${API}/studio/projects/${projectId}`, { headers: authHeaders() });
+  if (!r.ok) throw await r.json();
+  return r.json();
+}
+
+export async function createStudioExport(projectId: string, params: {
+  clip_ids: string[];
+  format: string;
+  translate_to?: string;
+}) {
+  const r = await fetch(`${API}/studio/projects/${projectId}/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(params),
+  });
+  if (!r.ok) throw await r.json();
+  return r.json();
+}
+
+export async function getStudioExport(exportId: string) {
+  const r = await fetch(`${API}/studio/exports/${exportId}`, { headers: authHeaders() });
+  if (!r.ok) throw await r.json();
+  return r.json();
+}
