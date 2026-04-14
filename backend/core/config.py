@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # ── Watermark ─────────────────────────────────────────────────────────────
-    WATERMARK_TEXT: str = "Translated by spottedyou.org"
+    WATERMARK_TEXT: str = "Translate free by Spottedyou.org"
 
     # ── Limites vidéo ─────────────────────────────────────────────────────────
     VIDEO_SHORT_MAX_SECONDS: int = 300   # 5 min → "short"

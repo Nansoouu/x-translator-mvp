@@ -102,7 +102,7 @@ async def public_library():
             """
             SELECT id, source_url, target_lang, summary,
                    source_lang, duration_s, video_type, storage_url,
-                   created_at
+                   thumbnail_url, download_count, created_at
             FROM jobs
             WHERE status = 'done'
               AND storage_url IS NOT NULL
@@ -277,7 +277,8 @@ async def get_job_status(
 
 @router.get("/{job_id}/download")
 async def download_job(job_id: str):
-    """Redirige vers l'URL de téléchargement de la vidéo watermarkée (public)."""
+    """Redirige vers l'URL de téléchargement de la vidéo watermarkée (public)
+    et incrémente le compteur de téléchargements."""
     try:
         jid = uuid.UUID(job_id)
     except ValueError:
@@ -295,6 +296,16 @@ async def download_job(job_id: str):
     if row["status"] != "done" or not row["storage_url"]:
         raise HTTPException(400, "Vidéo non disponible")
 
+    # Incrémenter le compteur de téléchargements (fire & forget)
+    try:
+        async with get_conn() as conn:
+            await conn.execute(
+                "UPDATE jobs SET download_count = download_count + 1, updated_at = now() WHERE id=$1",
+                jid,
+            )
+    except Exception:
+        pass  # Ne pas bloquer le téléchargement si la mise à jour échoue
+
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url=row["storage_url"], status_code=302)
 
@@ -309,7 +320,7 @@ async def list_user_jobs(user=Depends(get_current_user)):
             """
             SELECT id, source_url, target_lang, status, summary,
                    source_lang, duration_s, video_type, storage_url,
-                   created_at
+                   thumbnail_url, download_count, created_at
             FROM jobs
             WHERE user_id=$1
             ORDER BY created_at DESC

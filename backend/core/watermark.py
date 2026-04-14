@@ -1,11 +1,13 @@
 """
 core/watermark.py — Filigrane vidéo — x-translator-mvp
-Watermark : "Translated by spottedyou.org" en haut à droite
+Watermark : pattern diagonal semi-transparent + badge fixe haut-droite
+Texte : "Translate free by Spottedyou.org"
 Dépendances : Pillow
 """
 from __future__ import annotations
 
 import io
+import math
 import os
 from typing import Optional
 
@@ -21,9 +23,22 @@ _FONT_PATHS = [
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 
+_FONT_PATHS_REGULAR = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/Library/Fonts/Arial.ttf",
+    "/System/Library/Fonts/Helvetica.ttc",
+]
 
-def _get_font_path() -> Optional[str]:
-    for fp in _FONT_PATHS:
+
+def _get_font_path(bold: bool = True) -> Optional[str]:
+    paths = _FONT_PATHS if bold else _FONT_PATHS_REGULAR
+    for fp in paths:
+        if os.path.isfile(fp):
+            return fp
+    # fallback : essayer l'autre liste
+    fallback = _FONT_PATHS_REGULAR if bold else _FONT_PATHS
+    for fp in fallback:
         if os.path.isfile(fp):
             return fp
     return None
@@ -36,8 +51,12 @@ def _generate_watermark_png(
     opacity: int = 210,
 ) -> Optional[bytes]:
     """
-    Génère un PNG RGBA transparent (width × height) avec le watermark
-    en haut à droite dans un badge noir semi-transparent.
+    Génère un PNG RGBA transparent (width × height) avec deux couches de watermark :
+      1. Pattern diagonal répété semi-transparent sur toute la vidéo (~15% opacité)
+         → impossible de couper un coin pour supprimer le filigrane
+      2. Badge fixe haut-droite (~80% opacité) → lisible et bien visible
+
+    Texte : settings.WATERMARK_TEXT ("Translate free by Spottedyou.org")
     """
     if text is None:
         text = settings.WATERMARK_TEXT
@@ -45,40 +64,97 @@ def _generate_watermark_png(
     try:
         from PIL import Image, ImageDraw, ImageFont
 
-        # Police petite (12-14px selon résolution)
-        font_size  = max(11, min(14, width // 90))
-        font_path  = _get_font_path()
+        # ── Police grande (pattern diagonal) ──────────────────────────────────
+        diag_font_size = max(14, min(22, width // 55))
+        font_path      = _get_font_path(bold=False)
         try:
-            font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+            diag_font = (
+                ImageFont.truetype(font_path, diag_font_size)
+                if font_path
+                else ImageFont.load_default()
+            )
         except Exception:
-            font = ImageFont.load_default()
+            diag_font = ImageFont.load_default()
+
+        # ── Police petite (badge haut-droite) ─────────────────────────────────
+        badge_font_size = max(11, min(14, width // 90))
+        badge_fp        = _get_font_path(bold=True)
+        try:
+            badge_font = (
+                ImageFont.truetype(badge_fp, badge_font_size)
+                if badge_fp
+                else ImageFont.load_default()
+            )
+        except Exception:
+            badge_font = ImageFont.load_default()
 
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw    = ImageDraw.Draw(overlay)
 
+        # ─────────────────────────────────────────────────────────────────────
+        # COUCHE 1 : Pattern diagonal répété
+        # Méthode : générer un "tile" avec le texte incliné, puis le répliquer
+        # ─────────────────────────────────────────────────────────────────────
+        DIAG_OPACITY = 38   # ~15% — discret mais impossible à ignorer
+        ANGLE        = -30  # degrés, sens horaire → monte vers la droite
+
         # Mesurer le texte
         try:
-            bbox   = draw.textbbox((0, 0), text, font=font)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
+            bbox   = draw.textbbox((0, 0), text, font=diag_font)
+            txt_w  = bbox[2] - bbox[0]
+            txt_h  = bbox[3] - bbox[1]
         except AttributeError:
-            text_w, text_h = draw.textsize(text, font=font)
+            txt_w, txt_h = draw.textsize(text, font=diag_font)
+
+        # Générer un tile légèrement plus grand que le texte
+        pad_h    = int(txt_w * 0.8)   # espacement horizontal entre répétitions
+        pad_v    = int(txt_h * 3.5)   # espacement vertical
+        tile_w   = txt_w + pad_h
+        tile_h   = txt_h + pad_v
+
+        tile = Image.new("RGBA", (tile_w, tile_h), (0, 0, 0, 0))
+        tile_draw = ImageDraw.Draw(tile)
+        tile_draw.text(
+            (pad_h // 2, pad_v // 2),
+            text,
+            font=diag_font,
+            fill=(255, 255, 255, DIAG_OPACITY),
+        )
+
+        # Rotation
+        tile_rot = tile.rotate(ANGLE, expand=True, resample=Image.BICUBIC)
+        rot_w, rot_h = tile_rot.size
+
+        # Tiling sur tout le canvas
+        for y in range(-rot_h, height + rot_h, max(rot_h, 1)):
+            for x in range(-rot_w, width + rot_w, max(rot_w, 1)):
+                overlay.paste(tile_rot, (x, y), tile_rot)
+
+        # ─────────────────────────────────────────────────────────────────────
+        # COUCHE 2 : Badge fixe haut-droite
+        # ─────────────────────────────────────────────────────────────────────
+        draw2 = ImageDraw.Draw(overlay)
+
+        try:
+            bbox2   = draw2.textbbox((0, 0), text, font=badge_font)
+            text_w  = bbox2[2] - bbox2[0]
+            text_h  = bbox2[3] - bbox2[1]
+        except AttributeError:
+            text_w, text_h = draw2.textsize(text, font=badge_font)
 
         padding = 5
         margin  = 8
 
-        # Position haut-droite
         x = width - text_w - padding * 2 - margin
         y = margin
 
         # Badge arrière-plan noir semi-transparent
-        draw.rectangle(
+        draw2.rectangle(
             [x - padding, y - padding, x + text_w + padding, y + text_h + padding],
-            fill=(0, 0, 0, 170),
+            fill=(0, 0, 0, 185),
         )
-
-        # Texte blanc
-        draw.text((x, y), text, font=font, fill=(255, 255, 255, opacity))
+        # Texte blanc opaque
+        draw2.text((x, y), text, font=badge_font, fill=(255, 255, 255, opacity))
 
         buf = io.BytesIO()
         overlay.save(buf, format="PNG")
@@ -96,7 +172,7 @@ def add_watermark_video(
     timeout: int = 180,
 ) -> Optional[bytes]:
     """
-    Ajoute un filigrane haut-droite sur une vidéo MP4 via Pillow + FFmpeg.
+    Ajoute un filigrane (pattern diagonal + badge haut-droite) sur une vidéo MP4.
     Pipeline : ffprobe dims → Pillow PNG → FFmpeg overlay → MP4
     """
     import subprocess

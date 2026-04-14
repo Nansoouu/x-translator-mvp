@@ -483,6 +483,8 @@ async def process_video(
         except Exception as e:
             print(f"[pipeline] ⚠️  DB status update ignoré: {e}")
 
+    thumbnail_url: Optional[str] = None  # initialisé avant le try pour le finally
+
     try:
         # ── 1. Téléchargement ─────────────────────────────────────────────────
         await _set_status("downloading")
@@ -496,7 +498,10 @@ async def process_video(
             "no_warnings": True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([source_url])
+            info = ydl.extract_info(source_url, download=True)
+            thumbnail_url = info.get("thumbnail") if info else None
+        if thumbnail_url:
+            print(f"[pipeline] 🖼  Thumbnail extrait : {thumbnail_url[:80]}…")
 
         candidates = list(workdir.glob("source.*"))
         if not candidates:
@@ -677,14 +682,15 @@ async def process_video(
             await conn.execute(
                 """
                 UPDATE jobs SET
-                    status      = 'done',
-                    storage_key = $2,
-                    storage_url = $3,
-                    source_lang = $4,
-                    updated_at  = now()
+                    status        = 'done',
+                    storage_key   = $2,
+                    storage_url   = $3,
+                    source_lang   = $4,
+                    thumbnail_url = $5,
+                    updated_at    = now()
                 WHERE id = $1
                 """,
-                jid, storage_key, storage_url, source_lang,
+                jid, storage_key, storage_url, source_lang, thumbnail_url,
             )
 
         print(f"[pipeline] ✅ Job {job_id[:8]}… terminé — {storage_key}")
