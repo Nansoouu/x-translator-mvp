@@ -95,7 +95,7 @@ def _generate_watermark_png(
         # COUCHE 1 : Pattern diagonal répété
         # Méthode : générer un "tile" avec le texte incliné, puis le répliquer
         # ─────────────────────────────────────────────────────────────────────
-        DIAG_OPACITY = 38   # ~15% — discret mais impossible à ignorer
+        DIAG_OPACITY = 55   # ~22% — bien visible sur toutes les vidéos
         ANGLE        = -30  # degrés, sens horaire → monte vers la droite
 
         # Mesurer le texte

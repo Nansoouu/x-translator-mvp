@@ -367,7 +367,8 @@ def _burn_subtitles(
         ass_str = str(ass_path).replace("\\", "/")
         cmd = [
             ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"ass={ass_str},format=yuv420p",
+            "-vf", f"ass={ass_str}",
+            "-pix_fmt", "yuv420p",
             "-c:v", "libx264", "-crf", "18", "-preset", "fast",
             "-c:a", "copy", "-movflags", "+faststart",
             str(inter_path),
@@ -385,7 +386,8 @@ def _burn_subtitles(
         )
         cmd = [
             ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-            "-vf", f"subtitles={srt_str}:force_style={style_str},format=yuv420p",
+            "-vf", f"subtitles={srt_str}:force_style='{style_str}'",
+            "-pix_fmt", "yuv420p",
             "-c:v", "libx264", "-crf", "18", "-preset", "fast",
             "-c:a", "copy", "-movflags", "+faststart",
             str(inter_path),
@@ -419,12 +421,44 @@ def _burn_subtitles(
 
     # ── Cas sans watermark ou si overlay échoué ────────────────────────────
     if subs_ok:
-        # On a les sous-titres mais pas le watermark → on garde l'intermédiaire
+        # On a les sous-titres mais pas le watermark → on essaie quand même le watermark
+        # en utilisant le fichier intermédiaire comme source
+        if wm_path and wm_path.exists():
+            wm_cmd = [
+                ffmpeg, "-y", "-nostdin",
+                "-i", str(inter_path), "-i", str(wm_path),
+                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
+                "-map", "[out]", "-map", "0:a:0?",
+                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+                "-c:a", "copy", "-movflags", "+faststart",
+                str(output_path),
+            ]
+            wm_ok = _run(wm_cmd, "wm-fallback", output_path)
+            inter_path.unlink(missing_ok=True)
+            if wm_ok:
+                return True
+            print("[burn] ⚠️  Watermark fallback échoué → déplacement intermédiaire")
         shutil.move(str(inter_path), str(output_path))
         return output_path.exists() and output_path.stat().st_size > 0
 
-    # ── Dernier recours : copie directe de la source ───────────────────────
-    print("[burn] ⚠️  Copie directe de la source (aucun rendu possible)")
+    # ── Dernier recours : source + watermark obligatoire ──────────────────
+    if wm_path and wm_path.exists():
+        print("[burn] ⚠️  Tentative watermark seul sur la source originale")
+        wm_cmd = [
+            ffmpeg, "-y", "-nostdin",
+            "-i", str(video_path), "-i", str(wm_path),
+            "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
+            "-map", "[out]", "-map", "0:a:0?",
+            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+            "-c:a", "copy", "-movflags", "+faststart",
+            str(output_path),
+        ]
+        wm_ok = _run(wm_cmd, "wm-source-only", output_path)
+        if wm_ok:
+            return True
+
+    # ── Dernier recours absolu : copie directe (ne devrait jamais arriver) ──
+    print("[burn] ❌  Aucun rendu possible — copie directe (SANS watermark)")
     shutil.copy2(video_path, output_path)
     return output_path.exists() and output_path.stat().st_size > 0
 
@@ -678,30 +712,42 @@ async def process_video(
             storage_url = upload_result["storage_url"]
 
         # ── 9. Finalisation DB — connexion directe ────────────────────────────
-        async with direct_connect() as conn:
-            await conn.execute(
-                """
-                UPDATE jobs SET
-                    status        = 'done',
-                    storage_key   = $2,
-                    storage_url   = $3,
-                    source_lang   = $4,
-                    thumbnail_url = $5,
-                    updated_at    = now()
-                WHERE id = $1
-                """,
-                jid, storage_key, storage_url, source_lang, thumbnail_url,
-            )
+        # On wrappe dans un try/except : si l'event loop Celery est corrompu,
+        # l'UPDATE échoue mais la tâche ne doit PAS être marquée en erreur.
+        # pipeline_task.py fera un 2ème asyncio.run() pour forcer l'UPDATE.
+        _db_update_ok = False
+        try:
+            async with direct_connect() as conn:
+                await conn.execute(
+                    """
+                    UPDATE jobs SET
+                        status        = 'done',
+                        storage_key   = $2,
+                        storage_url   = $3,
+                        source_lang   = $4,
+                        thumbnail_url = $5,
+                        updated_at    = now()
+                    WHERE id = $1
+                    """,
+                    jid, storage_key, storage_url, source_lang, thumbnail_url,
+                )
+            _db_update_ok = True
+        except Exception as _db_exc:
+            print(f"[pipeline] ⚠️  DB final update ignoré (sera réessayé par la task): {_db_exc}")
 
-        print(f"[pipeline] ✅ Job {job_id[:8]}… terminé — {storage_key}")
+        if _db_update_ok:
+            print(f"[pipeline] ✅ Job {job_id[:8]}… terminé — {storage_key}")
         return {
-            "job_id":      job_id,
-            "status":      "done",
-            "storage_url": storage_url,
-            "source_lang": source_lang,
-            "duration_s":  round(duration, 1),
-            "video_type":  video_type,
-            "summary":     summary,
+            "job_id":        job_id,
+            "status":        "done",
+            "storage_url":   storage_url,
+            "storage_key":   storage_key,
+            "source_lang":   source_lang,
+            "thumbnail_url": thumbnail_url,
+            "duration_s":    round(duration, 1),
+            "video_type":    video_type,
+            "summary":       summary,
+            "_db_update_ok": _db_update_ok,
         }
 
     except Exception as exc:

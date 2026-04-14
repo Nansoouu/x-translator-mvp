@@ -3,7 +3,8 @@
 scripts/translate_messages.py — Auto-traduction i18n via Google Translate (gratuit)
 Usage :
   cd x-translator-mvp
-  python scripts/translate_messages.py
+  python3 scripts/translate_messages.py          # mode incrémental (clés manquantes seulement)
+  python3 scripts/translate_messages.py --full   # retraduit tout depuis zéro
 
 Lit frontend/messages/fr.json (source de vérité),
 traduit dans 19 langues avec deep-translator (GoogleTranslator, aucune clé requise).
@@ -139,29 +140,49 @@ def translate_value(
     return value
 
 
-# ── Traduction d'une locale complète ─────────────────────────────────────────
+# ── Traduction d'une locale complète (mode incrémental) ───────────────────────
 
 def translate_locale(
     source_flat: dict[str, str],
+    existing_flat: dict[str, str],
     google_code: str,
+    full_mode: bool = False,
     delay: float = 0.1,
-) -> dict[str, str]:
-    """Traduit toutes les clés avec GoogleTranslator."""
+) -> tuple[dict[str, str], int]:
+    """
+    Traduit les clés manquantes ou toutes les clés (--full).
+    Retourne le dict fusionné complet + le nombre de clés nouvellement traduites.
+    """
     from deep_translator import GoogleTranslator
 
-    translator = GoogleTranslator(source="fr", target=google_code)
-    translated: dict[str, str] = {}
-    total = len(source_flat)
+    if full_mode:
+        keys_to_translate = {k: v for k, v in source_flat.items()}
+    else:
+        # Mode incrémental : seulement les clés absentes du fichier existant
+        keys_to_translate = {
+            k: v for k, v in source_flat.items()
+            if k not in existing_flat
+        }
 
-    for i, (key, value) in enumerate(source_flat.items(), 1):
-        # Indicateur de progression compact
+    new_count = len(keys_to_translate)
+
+    if new_count == 0:
+        return {**existing_flat}, 0
+
+    translator = GoogleTranslator(source="fr", target=google_code)
+    newly_translated: dict[str, str] = {}
+    total = new_count
+
+    for i, (key, value) in enumerate(keys_to_translate.items(), 1):
         if i % 10 == 0 or i == total:
             print(f"\r  Clé {i:3d}/{total}…", end="", flush=True)
 
-        translated[key] = translate_value(translator, value)
-        time.sleep(delay)  # Respecter le rate limit Google
+        newly_translated[key] = translate_value(translator, value)
+        time.sleep(delay)
 
-    return translated
+    # Fusionner : existant + nouvelles traductions
+    merged = {**existing_flat, **newly_translated}
+    return merged, new_count
 
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
@@ -179,11 +200,16 @@ def main() -> None:
 
     MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Mode : --full pour retout depuis zéro, sinon incrémental
+    full_mode = "--full" in sys.argv
+
     print(f"📖 Lecture de {SOURCE_FILE.name}…")
     source_obj  = json.loads(SOURCE_FILE.read_text(encoding="utf-8"))
     source_flat = flatten(source_obj)
     total_keys  = len(source_flat)
-    print(f"   {total_keys} clés à traduire")
+    mode_label  = "COMPLET (--full)" if full_mode else "INCRÉMENTAL (clés manquantes uniquement)"
+    print(f"   {total_keys} clés dans la source")
+    print(f"   Mode : {mode_label}")
     print(f"   Moteur : Google Translate (deep-translator, gratuit, sans clé API)\n")
 
     total_locales = len(TARGET_LOCALES)
@@ -191,18 +217,39 @@ def main() -> None:
 
     for i, (locale_code, google_code, locale_name) in enumerate(TARGET_LOCALES, 1):
         out_file = MESSAGES_DIR / f"{locale_code}.json"
-        print(f"[{i:02d}/{total_locales}] {locale_name} ({locale_code} / google={google_code})…")
+
+        # Charger l'existant si présent
+        existing_flat: dict[str, str] = {}
+        if out_file.exists() and not full_mode:
+            try:
+                existing_obj  = json.loads(out_file.read_text(encoding="utf-8"))
+                existing_flat = flatten(existing_obj)
+            except Exception:
+                existing_flat = {}
+
+        missing_count = len(source_flat) - len({k for k in source_flat if k in existing_flat})
+        mode_info = f"tout" if full_mode else f"{missing_count} clé(s) manquante(s)"
+        print(f"[{i:02d}/{total_locales}] {locale_name} ({locale_code}) — {mode_info}…")
+
+        if not full_mode and missing_count == 0:
+            print(f"  ✅ Déjà à jour — aucune clé manquante\n")
+            success_count += 1
+            continue
 
         try:
-            translated_flat   = translate_locale(source_flat, google_code, delay=0.1)
-            translated_nested = unflatten(translated_flat)
+            merged_flat, new_count = translate_locale(
+                source_flat, existing_flat, google_code,
+                full_mode=full_mode, delay=0.1,
+            )
+            translated_nested = unflatten(merged_flat)
 
             out_file.write_text(
                 json.dumps(translated_nested, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
             success_count += 1
-            print(f"\r  ✅ Écrit → frontend/messages/{locale_code}.json ({total_keys} clés)\n")
+            label = f"{total_keys} clés" if full_mode else f"+{new_count} nouvelle(s) clé(s)"
+            print(f"\r  ✅ Écrit → frontend/messages/{locale_code}.json ({label})\n")
 
         except Exception as e:
             print(f"\r  ❌ Erreur pour {locale_name}: {e}\n")
@@ -211,7 +258,7 @@ def main() -> None:
         if i < total_locales:
             time.sleep(0.5)
 
-    print(f"🎉 Terminé — {success_count}/{total_locales} langues générées dans {MESSAGES_DIR}")
+    print(f"🎉 Terminé — {success_count}/{total_locales} langues traitées dans {MESSAGES_DIR}")
 
 
 if __name__ == "__main__":

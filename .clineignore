@@ -1,0 +1,24 @@
+# .clineignore
+
+# Gros dossiers générés (le plus important)
+.next/
+.next/**
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Variables d'environnement
+.env
+.env.local
+.env.*.local
+
+# Lockfiles et dépendances (pas besoin pour Cline)
+package-lock.json
+
+# Fichiers système
+.DS_Store
+*.log
+
+# Optionnel : si tu veux être très strict
+# database/          # garde-le si tu veux que Cline voie schema.sql

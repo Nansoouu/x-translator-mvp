@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { listUserJobs, getPublicLibrary, submitJob } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
@@ -63,12 +64,34 @@ type GroupedVideo = {
   summary?: string;
   source_lang?: string;
   duration_s?: number;
+  video_type?: string;   // 'short' (TikTok/Reels 9:16) ou 'long'
   created_at: string;
   download_count: number;
   variants: LangVariant[];
   best_done_url?: string;
   best_done_job_id?: string;
 };
+
+// ── Dédupliquer les variants par langue (garder le meilleur statut) ──────────
+const VARIANT_PRIORITY = ['done', 'uploading', 'burning', 'translating', 'transcribing', 'downloading', 'queued', 'error'];
+
+function deduplicateVariants(variants: LangVariant[]): LangVariant[] {
+  const byLang = new Map<string, LangVariant>();
+  for (const v of variants) {
+    const existing = byLang.get(v.lang);
+    if (!existing) {
+      byLang.set(v.lang, v);
+    } else {
+      const p1 = VARIANT_PRIORITY.indexOf(v.status);
+      const p2 = VARIANT_PRIORITY.indexOf(existing.status);
+      // Index plus bas = priorité plus haute (done = 0, error = 7)
+      if (p1 !== -1 && (p2 === -1 || p1 < p2)) {
+        byLang.set(v.lang, v);
+      }
+    }
+  }
+  return Array.from(byLang.values());
+}
 
 // ── Grouper les jobs par source_url ──────────────────────────────────────────
 function groupJobs(jobs: any[]): GroupedVideo[] {
@@ -83,6 +106,7 @@ function groupJobs(jobs: any[]): GroupedVideo[] {
         summary:      j.summary,
         source_lang:  j.source_lang,
         duration_s:   j.duration_s,
+        video_type:   j.video_type,
         created_at:   j.created_at,
         download_count: j.download_count || 0,
         variants:     [],
@@ -104,13 +128,24 @@ function groupJobs(jobs: any[]): GroupedVideo[] {
     if (!g.thumbnail_url && j.thumbnail_url) g.thumbnail_url = j.thumbnail_url;
     if (!g.source_lang && j.source_lang) g.source_lang = j.source_lang;
     if (!g.duration_s && j.duration_s)   g.duration_s = j.duration_s;
+    if (!g.video_type && j.video_type)   g.video_type = j.video_type;
     if (j.status === 'done' && j.storage_url && !g.best_done_url) {
       g.best_done_url    = j.storage_url;
       g.best_done_job_id = j.id;
     }
     g.download_count += (j.download_count || 0);
   }
-  return Array.from(map.values());
+  // Dédupliquer les variants par langue et recalculer best_done
+  return Array.from(map.values()).map((g) => {
+    g.variants = deduplicateVariants(g.variants);
+    // Recalculer best_done_url à partir des variants dédupliqués
+    const doneVariant = g.variants.find((v) => v.status === 'done' && v.storage_url);
+    if (doneVariant) {
+      g.best_done_url    = doneVariant.storage_url;
+      g.best_done_job_id = doneVariant.job_id;
+    }
+    return g;
+  });
 }
 
 // ── Date relative ─────────────────────────────────────────────────────────────
@@ -288,8 +323,8 @@ function VideoCard({
       : hasError   ? 'border-red-900/40'
       :               'border-gray-800 hover:border-gray-700'}
     `}>
-      {/* Thumbnail */}
-      <div className="relative aspect-video bg-gray-900 overflow-hidden">
+      {/* Thumbnail — aspect 9:16 pour TikTok/Reels, 16:9 sinon */}
+      <div className={`relative ${g.video_type === 'short' ? 'aspect-[9/16]' : 'aspect-video'} bg-gray-900 overflow-hidden`}>
         {g.thumbnail_url ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -486,6 +521,8 @@ function LoadingScreen() {
 // ── Page principale ───────────────────────────────────────────────────────────
 export default function LibraryPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const t = useTranslations('LibraryPage');
+  const tC = useTranslations('Common');
   const [myJobs,     setMyJobs]     = useState<any[]>([]);
   const [publicJobs, setPublicJobs] = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -566,11 +603,11 @@ export default function LibraryPage() {
           <section>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Mes vidéos</h1>
+                <h1 className="text-xl font-bold text-white tracking-tight">{t('myVideosTitle')}</h1>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {allMyGroups.length > 0
-                    ? `${allMyGroups.length} vidéo${allMyGroups.length > 1 ? 's' : ''} au total`
-                    : 'Aucune vidéo pour l\'instant'}
+                    ? t('myVideosCount', { count: allMyGroups.length, s: allMyGroups.length > 1 ? 's' : '' })
+                    : t('myVideosEmpty')}
                 </p>
               </div>
               <Link
@@ -580,17 +617,17 @@ export default function LibraryPage() {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
-                Nouvelle vidéo
+                {t('newVideoButton')}
               </Link>
             </div>
 
             {allMyGroups.length === 0 ? (
               <div className="text-center py-16 border border-dashed border-gray-800 rounded-2xl">
                 <p className="text-4xl mb-4">🎬</p>
-                <p className="text-sm font-semibold text-white mb-1">Aucune vidéo traduite</p>
-                <p className="text-xs text-gray-500 mb-6">Traduisez votre première vidéo en quelques clics.</p>
+                <p className="text-sm font-semibold text-white mb-1">{t('noVideosTitle')}</p>
+                <p className="text-xs text-gray-500 mb-6">{t('noVideosDesc')}</p>
                 <Link href="/" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors">
-                  Traduire une vidéo →
+                  {t('translateButton')}
                 </Link>
               </div>
             ) : (
@@ -600,7 +637,7 @@ export default function LibraryPage() {
                     <div className="flex items-center gap-2 mb-4">
                       <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
                       <p className="text-[11px] font-bold uppercase tracking-widest text-blue-400">
-                        En cours ({activeGroups.length})
+                        {t('inProgress', { count: activeGroups.length })}
                       </p>
                     </div>
                     <VideoGrid groups={activeGroups} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
@@ -609,7 +646,7 @@ export default function LibraryPage() {
                 {doneGroups.length > 0 && (
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
-                      Terminées ({doneGroups.length})
+                      {t('done', { count: doneGroups.length })}
                     </p>
                     <VideoGrid groups={doneGroups} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
                   </div>
@@ -617,7 +654,7 @@ export default function LibraryPage() {
                 {errorGroups.length > 0 && (
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-red-500 mb-4">
-                      Erreurs ({errorGroups.length})
+                      {t('errors', { count: errorGroups.length })}
                     </p>
                     <VideoGrid groups={errorGroups} showDownload={false} onPlay={setPlayerUrl} onAddLang={setAddLangVideo} />
                   </div>
