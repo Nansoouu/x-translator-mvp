@@ -1,68 +1,60 @@
 #!/usr/bin/env python3
 """
-scripts/translate_messages.py — Auto-traduction i18n via OpenRouter DeepSeek V3
+scripts/translate_messages.py — Auto-traduction i18n via Google Translate (gratuit)
 Usage :
   cd x-translator-mvp
-  OPENROUTER_API_KEY=sk-or-... python scripts/translate_messages.py
+  python scripts/translate_messages.py
 
 Lit frontend/messages/fr.json (source de vérité),
-traduit dans 19 langues et écrit les fichiers {locale}.json.
+traduit dans 19 langues avec deep-translator (GoogleTranslator, aucune clé requise).
+
+Installation : pip install deep-translator
 """
 from __future__ import annotations
 
 import json
-import os
+import re
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
-import httpx
-
 # ── Config ────────────────────────────────────────────────────────────────────
-API_KEY      = os.environ.get("OPENROUTER_API_KEY", "")
-MODEL        = "deepseek/deepseek-chat-v3-0324:free"
 MESSAGES_DIR = Path(__file__).parent.parent / "frontend" / "messages"
-SOURCE_LANG  = "fr"
 SOURCE_FILE  = MESSAGES_DIR / "fr.json"
 
-TARGET_LOCALES: list[tuple[str, str]] = [
-    ("en", "English"),
-    ("es", "Spanish"),
-    ("de", "German"),
-    ("it", "Italian"),
-    ("pt", "Brazilian Portuguese"),
-    ("ar", "Arabic"),
-    ("ru", "Russian"),
-    ("zh", "Simplified Chinese"),
-    ("ja", "Japanese"),
-    ("ko", "Korean"),
-    ("tr", "Turkish"),
-    ("nl", "Dutch"),
-    ("pl", "Polish"),
-    ("uk", "Ukrainian"),
-    ("hi", "Hindi"),
-    ("fa", "Persian (Farsi)"),
-    ("he", "Hebrew"),
-    ("vi", "Vietnamese"),
-    ("id", "Indonesian"),
+# Correspondance locale interne → code Google Translate
+# Note : Google utilise "iw" pour l'hébreu, "zh-CN" pour le chinois simplifié
+TARGET_LOCALES: list[tuple[str, str, str]] = [
+    # (locale_fichier, code_google, nom_lisible)
+    ("en",  "en",    "English"),
+    ("es",  "es",    "Spanish"),
+    ("de",  "de",    "German"),
+    ("it",  "it",    "Italian"),
+    ("pt",  "pt",    "Brazilian Portuguese"),
+    ("ar",  "ar",    "Arabic"),
+    ("ru",  "ru",    "Russian"),
+    ("zh",  "zh-CN", "Chinese (Simplified)"),
+    ("ja",  "ja",    "Japanese"),
+    ("ko",  "ko",    "Korean"),
+    ("tr",  "tr",    "Turkish"),
+    ("nl",  "nl",    "Dutch"),
+    ("pl",  "pl",    "Polish"),
+    ("uk",  "uk",    "Ukrainian"),
+    ("hi",  "hi",    "Hindi"),
+    ("fa",  "fa",    "Persian (Farsi)"),
+    ("he",  "iw",    "Hebrew"),
+    ("vi",  "vi",    "Vietnamese"),
+    ("id",  "id",    "Indonesian"),
 ]
 
-SYSTEM_PROMPT = """\
-You are a professional software localization expert.
-You translate JSON i18n message files accurately and naturally.
+# Regex pour détecter les placeholders next-intl : {count}, {n}, {plural}, etc.
+_PLACEHOLDER_RE = re.compile(r"\{[a-zA-Z_][a-zA-Z0-9_]*\}")
 
-Rules:
-- Translate ONLY the string VALUES, never the JSON keys.
-- Preserve ALL placeholders exactly as-is: {count}, {n}, {plural}, {label}, {active}, {minutes}, etc.
-- Preserve emojis, punctuation (→, …, •), and formatting exactly.
-- Do NOT add or remove keys.
-- Output ONLY valid JSON — no markdown, no explanation, no code fences.
-"""
 
+# ── Utilitaires JSON imbriqué ──────────────────────────────────────────────────
 
 def flatten(obj: Any, prefix: str = "") -> dict[str, str]:
-    """Aplatit un objet JSON imbriqué en clés pointées."""
     result: dict[str, str] = {}
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -74,7 +66,6 @@ def flatten(obj: Any, prefix: str = "") -> dict[str, str]:
 
 
 def unflatten(flat: dict[str, str]) -> Any:
-    """Reconstruit l'objet imbriqué depuis les clés pointées."""
     result: dict = {}
     for key, value in flat.items():
         parts = key.split(".")
@@ -85,105 +76,101 @@ def unflatten(flat: dict[str, str]) -> Any:
     return result
 
 
-def translate_chunk(
-    client: httpx.Client,
-    chunk: dict[str, str],
-    target_lang_name: str,
-    source_lang: str = "French",
+# ── Protection des placeholders ───────────────────────────────────────────────
+
+def protect_placeholders(text: str) -> tuple[str, dict[str, str]]:
+    """
+    Remplace {count}, {n}, etc. par des tokens NON-traduisibles (ex: PLHD0, PLHD1…)
+    afin que Google Translate ne les modifie pas.
+    Retourne le texte protégé + le mapping token → placeholder original.
+    """
+    mapping: dict[str, str] = {}
+    protected = text
+
+    for i, match in enumerate(_PLACEHOLDER_RE.finditer(text)):
+        token = f"PLHD{i}"
+        mapping[token] = match.group(0)
+
+    # On fait la substitution après avoir récupéré tous les matches
+    for token, original in mapping.items():
+        protected = protected.replace(original, token, 1)
+
+    return protected, mapping
+
+
+def restore_placeholders(text: str, mapping: dict[str, str]) -> str:
+    """Restaure les placeholders originaux depuis les tokens."""
+    for token, original in mapping.items():
+        text = text.replace(token, original)
+    return text
+
+
+# ── Traduction d'une valeur unique ────────────────────────────────────────────
+
+def translate_value(
+    translator,           # GoogleTranslator instance
+    value: str,
     retries: int = 3,
-) -> dict[str, str]:
-    """Envoie un batch de clés/valeurs à traduire via l'API OpenRouter."""
-    source_json = json.dumps(chunk, ensure_ascii=False, indent=2)
-    user_prompt = (
-        f"Translate the following JSON values from {source_lang} to {target_lang_name}.\n"
-        f"Output ONLY the translated JSON with the same keys:\n\n{source_json}"
-    )
+    delay: float = 0.15,
+) -> str:
+    """Traduit une seule chaîne en protégeant les placeholders."""
+    if not value.strip():
+        return value
+
+    # Pas la peine de traduire les emojis seuls ou les valeurs très courtes
+    protected, mapping = protect_placeholders(value)
 
     for attempt in range(retries):
         try:
-            resp = client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization":  f"Bearer {API_KEY}",
-                    "Content-Type":   "application/json",
-                    "HTTP-Referer":   "https://spottedyou.org",
-                    "X-Title":        "SpottedYou Translator i18n",
-                },
-                json={
-                    "model":    MODEL,
-                    "messages": [
-                        {"role": "system",  "content": SYSTEM_PROMPT},
-                        {"role": "user",    "content": user_prompt},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens":  4096,
-                },
-                timeout=60.0,
-            )
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"].strip()
-
-            # Nettoyer les éventuels blocs markdown (```json ... ```)
-            if content.startswith("```"):
-                lines   = content.split("\n")
-                content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
-
-            translated: dict[str, str] = json.loads(content)
-
-            # Vérifier que toutes les clés source sont présentes dans la traduction
-            missing = set(chunk.keys()) - set(translated.keys())
-            if missing:
-                print(f"    ⚠️  Clés manquantes ({len(missing)}) — on garde l'original pour celles-ci")
-                for k in missing:
-                    translated[k] = chunk[k]
-
-            return translated
-
-        except json.JSONDecodeError as e:
-            print(f"    ❌ JSON invalide (tentative {attempt+1}/{retries}): {e}")
-            if attempt < retries - 1:
-                time.sleep(2 ** attempt)
-        except httpx.HTTPStatusError as e:
-            print(f"    ❌ HTTP {e.response.status_code}: {e.response.text[:200]}")
-            if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+            result = translator.translate(protected)
+            if result:
+                restored = restore_placeholders(result, mapping)
+                return restored
+            return value
         except Exception as e:
-            print(f"    ❌ Erreur inattendue (tentative {attempt+1}/{retries}): {e}")
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                wait = 2 ** attempt
+                print(f"\n    ⚠️  Erreur tentative {attempt+1}/{retries}: {e} — attente {wait}s", end="")
+                time.sleep(wait)
+            else:
+                print(f"\n    ❌ Échec après {retries} tentatives: {e} — fallback source", end="")
+                return value
 
-    # Fallback : retourner les valeurs source non traduites
-    print(f"    ⚠️  Toutes les tentatives ont échoué — fallback sur source")
-    return chunk
+    return value
 
+
+# ── Traduction d'une locale complète ─────────────────────────────────────────
 
 def translate_locale(
-    client: httpx.Client,
     source_flat: dict[str, str],
-    locale_code: str,
-    locale_name: str,
-    chunk_size: int = 40,
+    google_code: str,
+    delay: float = 0.1,
 ) -> dict[str, str]:
-    """Traduit toutes les clés en plusieurs batches."""
-    keys       = list(source_flat.keys())
-    translated = {}
-    chunks     = [dict(list(source_flat.items())[i:i+chunk_size])
-                  for i in range(0, len(keys), chunk_size)]
+    """Traduit toutes les clés avec GoogleTranslator."""
+    from deep_translator import GoogleTranslator
 
-    for idx, chunk in enumerate(chunks, 1):
-        print(f"  Batch {idx}/{len(chunks)} ({len(chunk)} clés)…", end=" ", flush=True)
-        result = translate_chunk(client, chunk, locale_name)
-        translated.update(result)
-        print("✅")
-        if idx < len(chunks):
-            time.sleep(0.5)  # Respecter le rate limit
+    translator = GoogleTranslator(source="fr", target=google_code)
+    translated: dict[str, str] = {}
+    total = len(source_flat)
+
+    for i, (key, value) in enumerate(source_flat.items(), 1):
+        # Indicateur de progression compact
+        if i % 10 == 0 or i == total:
+            print(f"\r  Clé {i:3d}/{total}…", end="", flush=True)
+
+        translated[key] = translate_value(translator, value)
+        time.sleep(delay)  # Respecter le rate limit Google
 
     return translated
 
 
+# ── Point d'entrée ────────────────────────────────────────────────────────────
+
 def main() -> None:
-    if not API_KEY:
-        print("❌ OPENROUTER_API_KEY manquant. Définissez la variable d'environnement.")
+    try:
+        from deep_translator import GoogleTranslator  # noqa: F401
+    except ImportError:
+        print("❌ deep-translator non installé. Lancez : pip install deep-translator")
         sys.exit(1)
 
     if not SOURCE_FILE.exists():
@@ -195,25 +182,36 @@ def main() -> None:
     print(f"📖 Lecture de {SOURCE_FILE.name}…")
     source_obj  = json.loads(SOURCE_FILE.read_text(encoding="utf-8"))
     source_flat = flatten(source_obj)
-    print(f"   {len(source_flat)} clés à traduire\n")
+    total_keys  = len(source_flat)
+    print(f"   {total_keys} clés à traduire")
+    print(f"   Moteur : Google Translate (deep-translator, gratuit, sans clé API)\n")
 
-    total = len(TARGET_LOCALES)
+    total_locales = len(TARGET_LOCALES)
+    success_count = 0
 
-    with httpx.Client() as client:
-        for i, (locale_code, locale_name) in enumerate(TARGET_LOCALES, 1):
-            out_file = MESSAGES_DIR / f"{locale_code}.json"
-            print(f"[{i:02d}/{total}] {locale_name} ({locale_code})…")
+    for i, (locale_code, google_code, locale_name) in enumerate(TARGET_LOCALES, 1):
+        out_file = MESSAGES_DIR / f"{locale_code}.json"
+        print(f"[{i:02d}/{total_locales}] {locale_name} ({locale_code} / google={google_code})…")
 
-            translated_flat   = translate_locale(client, source_flat, locale_code, locale_name)
+        try:
+            translated_flat   = translate_locale(source_flat, google_code, delay=0.1)
             translated_nested = unflatten(translated_flat)
 
             out_file.write_text(
                 json.dumps(translated_nested, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-            print(f"  ✅ Écrit → {out_file.relative_to(MESSAGES_DIR.parent.parent)}\n")
+            success_count += 1
+            print(f"\r  ✅ Écrit → frontend/messages/{locale_code}.json ({total_keys} clés)\n")
 
-    print(f"🎉 Traduction terminée — {total} langues générées dans {MESSAGES_DIR}")
+        except Exception as e:
+            print(f"\r  ❌ Erreur pour {locale_name}: {e}\n")
+
+        # Pause entre langues pour éviter le throttling Google
+        if i < total_locales:
+            time.sleep(0.5)
+
+    print(f"🎉 Terminé — {success_count}/{total_locales} langues générées dans {MESSAGES_DIR}")
 
 
 if __name__ == "__main__":

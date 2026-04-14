@@ -1,13 +1,12 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { submitJob, getJobStatus, getQueueStats } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const PROVIDERS = ['𝕏 (Twitter)', 'YouTube'];
-const FLAGS     = ['🇫🇷', '🇬🇧', '🇪🇸', '🇩🇪', '🇯🇵', '🇰🇷', '🇸🇦', '🇧🇷', '🇮🇹', '🇺🇦', '🇨🇳'];
-
+// ── Langues ───────────────────────────────────────────────────────────────────
 const LANGS: Record<string, { label: string; flag: string }> = {
   fr: { label: 'Français',         flag: '🇫🇷' },
   en: { label: 'English',          flag: '🇬🇧' },
@@ -30,71 +29,104 @@ const LANGS: Record<string, { label: string; flag: string }> = {
   vi: { label: 'Tiếng Việt',       flag: '🇻🇳' },
   id: { label: 'Bahasa Indonesia', flag: '🇮🇩' },
 };
+const LANG_CODES = Object.keys(LANGS);
 
+// ── Étapes de traitement ──────────────────────────────────────────────────────
 const STEPS = [
-  { label: 'Téléchargement', icon: '⬇️',  statuses: ['downloading'] },
-  { label: 'Audio',          icon: '🎙️', statuses: ['transcribing'] },
-  { label: 'Traduction',     icon: '🌐',  statuses: ['translating'] },
-  { label: 'Rendu',          icon: '🎬',  statuses: ['burning', 'uploading'] },
-  { label: 'Terminé',        icon: '✅',  statuses: ['done'] },
+  { label: 'Récupération', icon: '⬇️',  statuses: ['downloading'] },
+  { label: 'Écoute',       icon: '🎙️', statuses: ['transcribing'] },
+  { label: 'Traduction',   icon: '🌐',  statuses: ['translating'] },
+  { label: 'Rendu',        icon: '🎬',  statuses: ['burning', 'uploading'] },
+  { label: 'Terminé',      icon: '✅',  statuses: ['done'] },
 ];
 
+// ── Providers supportés (yt-dlp) ──────────────────────────────────────────────
+const PROVIDERS = [
+  { name: '𝕏 / Twitter',   icon: '𝕏',  color: 'text-white' },
+  { name: 'YouTube',        icon: '▶',  color: 'text-red-400' },
+  { name: 'TikTok',         icon: '♪',  color: 'text-pink-400' },
+  { name: 'Instagram',      icon: '◈',  color: 'text-purple-400' },
+  { name: 'Facebook',       icon: '⬡',  color: 'text-blue-400' },
+  { name: 'Vimeo',          icon: '◉',  color: 'text-cyan-400' },
+  { name: 'Dailymotion',    icon: '◈',  color: 'text-orange-400' },
+  { name: 'Reddit',         icon: '◉',  color: 'text-orange-300' },
+];
+
+// ── Bénéfices ─────────────────────────────────────────────────────────────────
 const BENEFITS = [
-  { icon: '✨', title: 'Comprenez tout',         desc: 'Regardez n\'importe quelle vidéo dans votre langue, sans chercher de traduction.' },
-  { icon: '⚡', title: 'En quelques minutes',    desc: 'Collez un lien, choisissez votre langue. Votre vidéo traduite est prête rapidement.' },
-  { icon: '📤', title: 'Partagez à votre audience', desc: 'Diffusez des contenus internationaux à votre communauté dans leur langue.' },
-  { icon: '🔒', title: '100% privé',             desc: 'Vos vidéos sont stockées de façon sécurisée et accessibles uniquement par vous.' },
+  { icon: '✨', title: 'Comprenez tout',          desc: 'Regardez n\'importe quelle vidéo dans votre langue, sans chercher de traduction.' },
+  { icon: '⚡', title: 'En quelques minutes',     desc: 'Collez un lien, choisissez votre langue. Votre vidéo traduite est prête rapidement.' },
+  { icon: '🌍', title: 'Partagez à votre audience', desc: 'Diffusez des contenus internationaux à votre communauté dans leur langue.' },
+  { icon: '🔒', title: '100% privé',              desc: 'Vos vidéos sont stockées de façon sécurisée et accessibles uniquement par vous.' },
 ];
 
+// ── Roadmap V2 ────────────────────────────────────────────────────────────────
+const ROADMAP = [
+  { icon: '📤', title: 'Export automatique',     desc: 'Partagez directement vers Instagram, Telegram, votre boîte mail ou votre chaîne YouTube.' },
+  { icon: '✂️', title: 'Éditeur d\'extraits',    desc: 'Sélectionnez les meilleurs moments de la vidéo avant de lancer la traduction.' },
+  { icon: '🎙️', title: 'Doublage IA',           desc: 'Générez une voix traduite synchronized avec la vidéo originale.' },
+  { icon: '📊', title: 'Analytics de contenu',   desc: 'Mesurez l\'engagement de vos vidéos traduites par langue et région.' },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatSeconds(s: number): string {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   if (m === 0) return `${sec}s`;
   return `${m}m ${sec.toString().padStart(2, '0')}s`;
 }
-
 function formatMinutes(s: number): string {
   const m = Math.ceil(s / 60);
   if (m <= 1) return 'environ 1 min';
   return `environ ${m} min`;
 }
 
+// ── Animation hero ────────────────────────────────────────────────────────────
+const ANIMATED_PROVIDERS = ['𝕏 (Twitter)', 'YouTube', 'TikTok', 'Instagram'];
+const ANIMATED_FLAGS      = ['🇫🇷', '🇬🇧', '🇪🇸', '🇩🇪', '🇯🇵', '🇰🇷', '🇸🇦', '🇧🇷'];
+
+// ── Page principale ───────────────────────────────────────────────────────────
 export default function Home() {
-  const [url, setUrl]         = useState('');
-  const [lang, setLang]       = useState('fr');
-  const [jobId, setJobId]     = useState<string | null>(null);
-  const [status, setStatus]   = useState<any>(null);
+  const { isAuthenticated } = useAuth();
+
+  const [url,     setUrl]     = useState('');
+  const [jobId,   setJobId]   = useState<string | null>(null);
+  const [status,  setStatus]  = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
+
+  // Multi-sélection de langues
+  const [selectedLangs, setSelectedLangs] = useState<string[]>(['en']);
+  const [upsellLang,    setUpsellLang]    = useState(false);
+  const [multiDone,     setMultiDone]     = useState(false); // soumission multi terminée
 
   // File d'attente
-  const [queue, setQueue]     = useState<{ active_count: number; queued_count: number; estimated_wait_s: number } | null>(null);
+  const [queue, setQueue] = useState<{ active_count: number; queued_count: number; estimated_wait_s: number } | null>(null);
 
   // Timer
-  const [elapsed, setElapsed]   = useState(0);
-  const startedAtRef            = useRef<number>(0);
-  const pollRef                 = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timerRef                = useRef<ReturnType<typeof setInterval> | null>(null);
-  const queuePollRef            = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [elapsed, setElapsed]     = useState(0);
+  const startedAtRef              = useRef<number>(0);
+  const pollRef                   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef                  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const queuePollRef              = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Animations hero
+  // Animation hero
   const [providerIdx, setProviderIdx] = useState(0);
   const [flagIdx,     setFlagIdx]     = useState(0);
   const [visible,     setVisible]     = useState(true);
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const t = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setProviderIdx(i => (i + 1) % PROVIDERS.length);
-        setFlagIdx(i => (i + 1) % FLAGS.length);
+        setProviderIdx((i) => (i + 1) % ANIMATED_PROVIDERS.length);
+        setFlagIdx((i) => (i + 1) % ANIMATED_FLAGS.length);
         setVisible(true);
       }, 250);
     }, 2200);
-    return () => clearInterval(timer);
+    return () => clearInterval(t);
   }, []);
 
-  // Charger les stats de la file au montage
   useEffect(() => {
     getQueueStats().then(setQueue).catch(() => {});
     queuePollRef.current = setInterval(() => {
@@ -103,7 +135,6 @@ export default function Home() {
     return () => clearInterval(queuePollRef.current!);
   }, []);
 
-  // Timer temps écoulé
   useEffect(() => {
     if (!jobId || status?.status === 'done' || status?.status === 'error') {
       clearInterval(timerRef.current!);
@@ -115,45 +146,72 @@ export default function Home() {
     return () => clearInterval(timerRef.current!);
   }, [jobId, status?.status]);
 
-  // Polling statut
   useEffect(() => {
     if (!jobId) return;
     pollRef.current = setInterval(async () => {
       try {
         const s = await getJobStatus(jobId);
         setStatus(s);
-        if (s.status === 'done') {
+        if (s.status === 'done' || s.status === 'error') {
           clearInterval(pollRef.current!);
           clearInterval(timerRef.current!);
-          // Rafraîchir les stats de la file
           getQueueStats().then(setQueue).catch(() => {});
-        }
-        if (s.status === 'error') {
-          clearInterval(pollRef.current!);
-          clearInterval(timerRef.current!);
         }
       } catch {}
     }, 3000);
     return () => clearInterval(pollRef.current!);
   }, [jobId]);
 
+  // ── Toggle langue ────────────────────────────────────────────────────────────
+  function toggleLang(code: string) {
+    if (selectedLangs.includes(code)) {
+      // Ne pas désélectionner la dernière langue
+      if (selectedLangs.length > 1) {
+        setSelectedLangs((prev) => prev.filter((l) => l !== code));
+        setUpsellLang(false);
+      }
+    } else {
+      if (!isAuthenticated && selectedLangs.length >= 1) {
+        setUpsellLang(true);
+        return;
+      }
+      setSelectedLangs((prev) => [...prev, code]);
+      setUpsellLang(false);
+    }
+  }
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setStatus(null);
     setElapsed(0);
     setLoading(true);
+    setMultiDone(false);
+
     try {
-      const res = await submitJob(url, lang);
-      startedAtRef.current = Date.now();
-      setJobId(res.job_id);
-      // Si la vidéo était déjà traitée (cache), set direct
-      if (res.status === 'done') {
-        const s = await getJobStatus(res.job_id);
-        setStatus(s);
+      if (selectedLangs.length === 1) {
+        // Mode simple — suivi en temps réel sur la même page
+        const res = await submitJob(url, selectedLangs[0]);
+        startedAtRef.current = Date.now();
+        setJobId(res.job_id);
+        if (res.status === 'done') {
+          const s = await getJobStatus(res.job_id);
+          setStatus(s);
+        }
+      } else {
+        // Mode multi — soumettre N jobs et rediriger vers la bibliothèque
+        await Promise.all(selectedLangs.map((lang) => submitJob(url, lang)));
+        setMultiDone(true);
+        setTimeout(() => { window.location.href = '/library'; }, 2000);
       }
     } catch (err: any) {
-      setError(err?.message || err?.detail || 'Erreur lors de la soumission. Vérifiez le lien.');
+      const detail = err?.detail;
+      if (typeof detail === 'object' && detail?.error === 'quota_exceeded') {
+        setError('quota_exceeded');
+      } else {
+        setError(detail?.message || err?.message || 'Erreur. Vérifiez le lien et réessayez.');
+      }
     } finally {
       setLoading(false);
     }
@@ -167,11 +225,10 @@ export default function Home() {
     setUrl('');
     setError(null);
     setElapsed(0);
+    setMultiDone(false);
   }
 
   const pct = status?.progress_pct || 0;
-
-  // Calculer l'étape active à partir du statut backend
   const activeStep = (() => {
     if (!status) return -1;
     const st = status.status;
@@ -181,10 +238,8 @@ export default function Home() {
     }
     return 0;
   })();
-
-  // Estimation temps restant
   const estimatedTotalS = status?.duration_s ? Math.max(90, status.duration_s * 1.5 + 60) : 240;
-  const remaining = Math.max(0, estimatedTotalS - elapsed);
+  const remaining       = Math.max(0, estimatedTotalS - elapsed);
 
   return (
     <main className="h-screen overflow-y-auto bg-gray-950 text-white">
@@ -201,7 +256,7 @@ export default function Home() {
         <div className="relative max-w-5xl mx-auto px-4 py-16 sm:py-24 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            21 langues disponibles · Sous-titres inclus
+            21 langues · 8 plateformes · Sous-titres inclus
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight mb-6">
@@ -210,19 +265,19 @@ export default function Home() {
               className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 transition-opacity duration-200"
               style={{ opacity: visible ? 1 : 0 }}
             >
-              {PROVIDERS[providerIdx]}
+              {ANIMATED_PROVIDERS[providerIdx]}
             </span>
             <br />
             <span className="text-white">to </span>
             <span className="transition-opacity duration-200" style={{ opacity: visible ? 1 : 0, fontSize: '1.1em' }}>
-              {FLAGS[flagIdx]}
+              {ANIMATED_FLAGS[flagIdx]}
             </span>
             <span className="text-white"> in </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">minutes</span>
           </h1>
 
           <p className="text-sm sm:text-base text-gray-400 max-w-lg mx-auto mb-8 leading-relaxed">
-            Votre vidéo X ou YouTube traduite, sous-titrée et prête à partager <strong className="text-white">sans effort</strong>.
+            Votre vidéo traduite, sous-titrée et prête à partager <strong className="text-white">sans effort</strong>.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -238,6 +293,17 @@ export default function Home() {
             >
               Créer un compte gratuit
             </Link>
+          </div>
+
+          {/* Providers bar */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            <span className="text-[11px] text-gray-600 uppercase tracking-widest">Compatible avec</span>
+            {PROVIDERS.map((p) => (
+              <span key={p.name} className={`text-xs font-semibold ${p.color} opacity-70`}>
+                {p.name}
+              </span>
+            ))}
+            <span className="text-[11px] text-gray-600">+ hundreds more</span>
           </div>
         </div>
       </section>
@@ -263,40 +329,126 @@ export default function Home() {
             </div>
           )}
 
-          {!jobId && (
-            <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-4">
+          {/* Multi-langue soumis → redirection */}
+          {multiDone && (
+            <div className="max-w-lg mx-auto text-center py-10">
+              <div className="text-4xl mb-4">🚀</div>
+              <p className="text-base font-bold text-white mb-2">
+                {selectedLangs.length} traductions lancées !
+              </p>
+              <p className="text-sm text-gray-400 mb-4">Redirection vers votre bibliothèque…</p>
+              <Link href="/library" className="text-blue-400 text-xs underline">Aller maintenant →</Link>
+            </div>
+          )}
+
+          {!jobId && !multiDone && (
+            <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-5">
+
+              {/* URL */}
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                  Lien X (Twitter) ou YouTube
+                  Lien vidéo (X, YouTube, TikTok, Instagram, Vimeo…)
                 </label>
                 <input
                   type="url"
                   value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder="https://x.com/... ou https://youtube.com/..."
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://x.com/… https://tiktok.com/… https://youtube.com/…"
                   required
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
                 />
               </div>
+
+              {/* Sélecteur de langues — grille de drapeaux */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                  Langue cible
-                </label>
-                <select
-                  value={lang}
-                  onChange={e => setLang(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors cursor-pointer"
-                >
-                  {Object.entries(LANGS).map(([k, v]) => (
-                    <option key={k} value={k} className="bg-gray-900">{v.flag} {v.label}</option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                    Langue{selectedLangs.length > 1 ? 's' : ''} cible{selectedLangs.length > 1 ? 's' : ''}
+                    <span className="ml-2 font-normal normal-case text-gray-600">
+                      ({selectedLangs.length} sélectionnée{selectedLangs.length > 1 ? 's' : ''})
+                    </span>
+                  </label>
+                  {!isAuthenticated && (
+                    <span className="text-[10px] text-gray-600">
+                      <Link href="/login" className="text-blue-500 hover:text-blue-400 underline">Connectez-vous</Link> pour multi-langues
+                    </span>
+                  )}
+                </div>
+
+                {/* Grille */}
+                <div className="grid grid-cols-5 gap-1.5">
+                  {LANG_CODES.map((code) => {
+                    const { label, flag } = LANGS[code];
+                    const isSelected = selectedLangs.includes(code);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        title={label}
+                        onClick={() => toggleLang(code)}
+                        className={`
+                          relative flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border text-center transition-all
+                          ${isSelected
+                            ? 'border-blue-500 bg-blue-500/15 shadow-sm shadow-blue-500/20'
+                            : 'border-gray-800 bg-gray-900 hover:border-gray-600 hover:bg-gray-800'}
+                        `}
+                      >
+                        <span className="text-xl leading-none">{flag}</span>
+                        <span className={`text-[9px] leading-none font-medium ${isSelected ? 'text-blue-300' : 'text-gray-500'}`}>
+                          {code.toUpperCase()}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-600 border border-gray-950 flex items-center justify-center text-[8px] text-white font-bold">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Upsell multi-langue */}
+                {upsellLang && (
+                  <div className="mt-3 bg-gradient-to-r from-blue-900/30 to-violet-900/30 border border-blue-500/20 rounded-xl p-3 text-xs">
+                    <p className="font-semibold text-white mb-1">✨ Traduction multi-langues</p>
+                    <p className="text-gray-400 mb-2">
+                      Sélectionnez jusqu'à 21 langues en une seule soumission. Disponible avec un compte gratuit.
+                    </p>
+                    <div className="flex gap-2">
+                      <Link href="/login" className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                        Créer un compte →
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setUpsellLang(false)}
+                        className="px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white transition-colors"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              {error && (
+
+              {/* Erreur quota */}
+              {error === 'quota_exceeded' && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                  <p className="text-xs font-bold text-amber-300 mb-1">Quota gratuit épuisé</p>
+                  <p className="text-[11px] text-amber-400/80 mb-3">
+                    Vos 3 vidéos gratuites ont été utilisées. Passez à l'offre Pro pour continuer.
+                  </p>
+                  <Link href="/billing" className="inline-flex text-xs font-semibold px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors">
+                    Voir les offres →
+                  </Link>
+                </div>
+              )}
+
+              {error && error !== 'quota_exceeded' && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
                   ⚠️ {error}
                 </div>
               )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -310,17 +462,24 @@ export default function Home() {
                     </svg>
                     Envoi en cours…
                   </>
-                ) : '🚀 Traduire la vidéo'}
+                ) : selectedLangs.length > 1
+                    ? `🚀 Traduire en ${selectedLangs.length} langues`
+                    : '🚀 Traduire la vidéo'}
               </button>
+
+              {selectedLangs.length > 1 && (
+                <p className="text-[11px] text-center text-gray-600">
+                  {selectedLangs.length} jobs seront lancés simultanément → retrouvez-les dans{' '}
+                  <Link href="/library" className="text-blue-500 underline">votre bibliothèque</Link>
+                </p>
+              )}
             </form>
           )}
 
-          {/* ── CARD DE PROGRESSION ── */}
+          {/* ── CARD DE PROGRESSION (1 seule langue) ── */}
           {jobId && (
             <div className="max-w-lg mx-auto">
               <div className="bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden">
-
-                {/* Étapes + barre de progression */}
                 <div className="px-6 pt-6 pb-4 border-b border-gray-800">
                   <div className="flex items-center justify-between gap-1 mb-4">
                     {STEPS.map((s, i) => {
@@ -343,20 +502,17 @@ export default function Home() {
                     })}
                   </div>
 
-                  {/* Barre de progression */}
                   <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                     <div
                       className="h-1.5 rounded-full transition-all duration-700 bg-gradient-to-r from-blue-600 to-cyan-400"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-
                   <div className="flex justify-between mt-1.5">
                     <p className="text-[11px] text-gray-500">{status?.status_label || 'Traitement en cours…'}</p>
                     <p className="text-[11px] text-gray-600 tabular-nums">{pct}%</p>
                   </div>
 
-                  {/* Timer + estimation */}
                   {status?.status && status.status !== 'done' && status.status !== 'error' && (
                     <div className="mt-2 flex items-center justify-between text-[10px] text-gray-600">
                       <span>⏱ En cours depuis {formatSeconds(elapsed)}</span>
@@ -367,19 +523,14 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* ── RÉSULTAT TERMINÉ ── */}
                 {status?.status === 'done' && status?.storage_url && (
                   <div className="p-5 space-y-4">
-
-                    {/* Résumé */}
                     {status.summary && (
                       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Résumé</p>
                         <p className="text-xs text-gray-300 leading-relaxed">{status.summary}</p>
                       </div>
                     )}
-
-                    {/* Lecteur vidéo — sans contrôles natifs de téléchargement */}
                     <div className="relative rounded-xl overflow-hidden bg-black border border-gray-800">
                       <video
                         src={status.storage_url}
@@ -391,17 +542,13 @@ export default function Home() {
                         preload="metadata"
                       />
                     </div>
-
-                    {/* Bouton télécharger watermarqué */}
                     <a
                       href={`${API}/jobs/${jobId}/download`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      download={`spottedyou-${jobId.slice(0, 8)}.mp4`}
                       className="flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm transition-colors"
                     >
-                      ⬇️ Télécharger la vidéo
+                      ⬇️ Télécharger la vidéo traduite
                     </a>
-
                     <button
                       onClick={reset}
                       className="w-full px-5 py-2.5 rounded-xl border border-gray-800 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white text-xs font-medium transition-all"
@@ -411,7 +558,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* ── ERREUR ── */}
                 {status?.status === 'error' && (
                   <div className="p-5">
                     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center space-y-3">
@@ -427,7 +573,7 @@ export default function Home() {
       </section>
 
       {/* ── BÉNÉFICES ── */}
-      {!jobId && (
+      {!jobId && !multiDone && (
         <section className="border-b border-gray-800">
           <div className="max-w-5xl mx-auto px-4 py-12">
             <div className="text-center mb-8">
@@ -435,7 +581,7 @@ export default function Home() {
               <p className="text-sm text-gray-500">La barrière de la langue, c'est terminé.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {BENEFITS.map(b => (
+              {BENEFITS.map((b) => (
                 <div key={b.title} className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors">
                   <div className="text-3xl mb-3">{b.icon}</div>
                   <p className="text-sm font-semibold text-white mb-1.5">{b.title}</p>
@@ -447,8 +593,77 @@ export default function Home() {
         </section>
       )}
 
+      {/* ── PROVIDERS SUPPORTÉS ── */}
+      {!jobId && !multiDone && (
+        <section className="border-b border-gray-800">
+          <div className="max-w-5xl mx-auto px-4 py-10">
+            <div className="text-center mb-6">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1">Plateformes compatibles</p>
+              <p className="text-xs text-gray-600">Copiez-collez n'importe quel lien vidéo public</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+              {PROVIDERS.map((p) => (
+                <div key={p.name} className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-2.5 hover:border-gray-700 transition-colors">
+                  <span className={`text-xl font-bold leading-none ${p.color}`}>{p.icon}</span>
+                  <span className="text-xs font-semibold text-gray-300">{p.name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-[11px] text-gray-600 mt-4">
+              + Dailymotion, Twitch clips, Reddit, et des centaines d'autres
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* ── SECTION ÉQUIPE + ROADMAP V2 ── */}
+      {!jobId && !multiDone && (
+        <section className="border-b border-gray-800">
+          <div className="max-w-5xl mx-auto px-4 py-14">
+            <div className="grid md:grid-cols-2 gap-10 items-start">
+
+              {/* Notre équipe */}
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-medium mb-6">
+                  👋 Qui sommes-nous ?
+                </div>
+                <h2 className="text-xl font-bold text-white mb-4">Une petite équipe, une grande ambition</h2>
+                <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                  SpottedYou Translator est né d'une conviction simple : <strong className="text-white">les meilleures technologies</strong> doivent être accessibles à tous, pas seulement aux grandes équipes avec de gros budgets.
+                </p>
+                <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                  Nous sommes une toute petite équipe passionnée qui a assemblé les outils les plus avancés du moment pour vous offrir une expérience magique — sans que vous ayez besoin de comprendre ce qui se passe sous le capot.
+                </p>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  Chaque vidéo traduite est un pont entre des cultures. Merci d'en faire partie. 🌍
+                </p>
+              </div>
+
+              {/* Roadmap V2 */}
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-6">
+                  🗺️ Ce qui arrive dans la V2
+                </div>
+                <h2 className="text-xl font-bold text-white mb-4">La suite du voyage</h2>
+                <div className="space-y-3">
+                  {ROADMAP.map((r) => (
+                    <div key={r.title} className="flex items-start gap-3 bg-gray-900/60 border border-gray-800 rounded-xl p-3.5 hover:border-gray-700 transition-colors">
+                      <span className="text-2xl leading-none mt-0.5">{r.icon}</span>
+                      <div>
+                        <p className="text-xs font-semibold text-white mb-0.5">{r.title}</p>
+                        <p className="text-[11px] text-gray-500 leading-relaxed">{r.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── LANGUES DISPO ── */}
-      {!jobId && (
+      {!jobId && !multiDone && (
         <section className="border-b border-gray-800">
           <div className="max-w-5xl mx-auto px-4 py-10 text-center">
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
@@ -456,7 +671,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {Object.entries(LANGS).map(([k, v]) => (
-                <span key={k} className="text-lg" title={v.label}>{v.flag}</span>
+                <span key={k} className="text-2xl" title={v.label}>{v.flag}</span>
               ))}
             </div>
           </div>
@@ -466,7 +681,7 @@ export default function Home() {
       {/* ── FOOTER ── */}
       <footer className="py-8">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-600">© 2026 SpottedYou Translator</p>
+          <p className="text-xs text-gray-600">© 2026 SpottedYou Translator · Built with ❤️</p>
           <div className="flex items-center gap-5">
             <Link href="/library" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Mes vidéos</Link>
             <Link href="/billing" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Abonnement</Link>
