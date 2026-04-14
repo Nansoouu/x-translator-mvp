@@ -24,6 +24,7 @@ async def init_pool() -> None:
         min_size=2,
         max_size=10,
         command_timeout=60,
+        statement_cache_size=0,  # requis pour PgBouncer (Supabase) en mode transaction
     )
     print(f"[db] ✅ Pool asyncpg initialisé ({url[:40]}…)")
 
