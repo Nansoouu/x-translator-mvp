@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     def groq_enabled(self) -> bool:
         return bool(self.GROQ_API_KEY)
 
+    @property
+    def groq_api_keys(self) -> List[str]:
+        """Retourne la liste des clés Groq (GROQ_API_KEY peut être 'key1,key2,key3')."""
+        if not self.GROQ_API_KEY:
+            return []
+        return [k.strip() for k in self.GROQ_API_KEY.split(",") if k.strip()]
+
     class Config:
         env_file = ".env"
         extra = "ignore"
