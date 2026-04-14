@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getBillingStatus, createCheckout } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
 const PLANS = [
@@ -37,15 +38,17 @@ const PLANS = [
 ];
 
 export default function BillingPage() {
-  const [billing, setBilling]               = useState<any>(null);
-  const [loading, setLoading]               = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [billing, setBilling]                     = useState<any>(null);
+  const [checkoutLoading, setCheckoutLoading]     = useState<string | null>(null);
 
   useEffect(() => {
-    getBillingStatus().then(s => { setBilling(s); setLoading(false); });
-  }, []);
+    if (authLoading || !isAuthenticated) return;
+    getBillingStatus().then(s => setBilling(s)).catch(() => {});
+  }, [isAuthenticated, authLoading]);
 
   async function handleCheckout(planId: string) {
+    if (!isAuthenticated) { window.location.href = '/login'; return; }
     setCheckoutLoading(planId);
     try {
       const res = await createCheckout(planId);
@@ -68,7 +71,7 @@ export default function BillingPage() {
           </h1>
           <p className="text-sm text-gray-400">Simple, transparent. Sans frais cachés.</p>
 
-          {!loading && billing && (
+          {isAuthenticated && billing && (
             <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-gray-900 border border-gray-800 text-xs">
               <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
               Plan actuel : <span className="font-semibold text-white capitalize">{billing.plan}</span>
@@ -92,7 +95,7 @@ export default function BillingPage() {
               {plan.highlight && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-600 text-white">
-                    ✨ Populaire
+                    Populaire
                   </span>
                 </div>
               )}
@@ -145,7 +148,7 @@ export default function BillingPage() {
           ))}
         </div>
 
-        <p className="text-center text-[11px] text-gray-600 mt-8 flex items-center justify-center gap-2">
+        <p className="text-center text-[11px] text-gray-600 mt-8">
           🔒 Paiement sécurisé par Stripe · Annulation à tout moment
         </p>
 

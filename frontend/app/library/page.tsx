@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { listUserJobs } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -22,14 +23,20 @@ const LANG_FLAGS: Record<string, string> = {
 };
 
 export default function LibraryPage() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [jobs, setJobs]       = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listUserJobs().then(j => { setJobs(j); setLoading(false); });
-  }, []);
+    if (authLoading) return;
+    if (!isAuthenticated) { setLoading(false); return; }
+    listUserJobs()
+      .then(j => setJobs(j || []))
+      .finally(() => setLoading(false));
+  }, [isAuthenticated, authLoading]);
 
-  if (loading) {
+  // Skeleton de chargement
+  if (loading || authLoading) {
     return (
       <main className="h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-gray-500">
@@ -38,6 +45,25 @@ export default function LibraryPage() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
           </svg>
           <p className="text-xs">Chargement…</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Non connecté
+  if (!isAuthenticated) {
+    return (
+      <main className="h-screen bg-gray-950 text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <p className="text-4xl mb-4">🔒</p>
+          <h1 className="text-lg font-bold text-white mb-2">Connexion requise</h1>
+          <p className="text-sm text-gray-500 mb-6">Connectez-vous pour voir vos vidéos traduites.</p>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-blue-500/20"
+          >
+            Se connecter →
+          </Link>
         </div>
       </main>
     );
@@ -76,7 +102,7 @@ export default function LibraryPage() {
               href="/"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-blue-500/20"
             >
-              🚀 Traduire ma première vidéo
+              Traduire ma première vidéo
             </Link>
           </div>
         ) : (
@@ -86,21 +112,16 @@ export default function LibraryPage() {
                 key={j.id}
                 className="group bg-gray-900/60 border border-gray-800 rounded-xl p-4 hover:border-gray-700 hover:bg-gray-900/80 transition-all flex items-start gap-4"
               >
-                {/* Icône source */}
-                <div className="shrink-0 w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-base border border-gray-700">
+                <div className="shrink-0 w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-base border border-gray-700 font-bold text-gray-400">
                   {j.source_url?.includes('youtube') || j.source_url?.includes('youtu.be') ? '▶' : '𝕏'}
                 </div>
-
-                {/* Contenu */}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-gray-200 truncate">{j.source_url}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className="text-[10px] bg-gray-800 border border-gray-700 px-2 py-0.5 rounded">
                       {LANG_FLAGS[j.target_lang] || '🌐'} {j.target_lang?.toUpperCase()}
                     </span>
-                    {j.duration_s && (
-                      <span className="text-[10px] text-gray-600">⏱ {Math.round(j.duration_s)}s</span>
-                    )}
+                    {j.duration_s && <span className="text-[10px] text-gray-600">⏱ {Math.round(j.duration_s)}s</span>}
                     {j.created_at && (
                       <span className="text-[10px] text-gray-600">
                         {new Date(j.created_at).toLocaleDateString('fr-FR')}
@@ -111,8 +132,6 @@ export default function LibraryPage() {
                     <p className="text-[11px] text-gray-500 mt-1.5 line-clamp-2 italic">{j.summary}</p>
                   )}
                 </div>
-
-                {/* Actions */}
                 <div className="shrink-0 flex items-center gap-2">
                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[j.status] || STATUS_STYLES.pending}`}>
                     {STATUS_LABELS[j.status] || j.status}

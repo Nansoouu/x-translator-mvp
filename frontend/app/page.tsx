@@ -3,27 +3,30 @@ import { useState, useEffect, useRef } from 'react';
 import { submitJob, getJobStatus } from '@/lib/api';
 import Link from 'next/link';
 
+const PROVIDERS = ['𝕏 (Twitter)', 'YouTube'];
+const FLAGS     = ['🇫🇷', '🇬🇧', '🇪🇸', '🇩🇪', '🇯🇵', '🇰🇷', '🇸🇦', '🇧🇷', '🇮🇹', '🇺🇦', '🇨🇳'];
+
 const LANGS: Record<string, { label: string; flag: string }> = {
-  fr: { label: 'Français',          flag: '🇫🇷' },
-  en: { label: 'English',           flag: '🇬🇧' },
-  es: { label: 'Español',           flag: '🇪🇸' },
-  de: { label: 'Deutsch',           flag: '🇩🇪' },
-  it: { label: 'Italiano',          flag: '🇮🇹' },
-  pt: { label: 'Português',         flag: '🇧🇷' },
-  nl: { label: 'Nederlands',        flag: '🇳🇱' },
-  pl: { label: 'Polski',            flag: '🇵🇱' },
-  ru: { label: 'Русский',           flag: '🇷🇺' },
-  uk: { label: 'Українська',        flag: '🇺🇦' },
-  ar: { label: 'العربية',           flag: '🇸🇦' },
-  fa: { label: 'فارسی',             flag: '🇮🇷' },
-  he: { label: 'עברית',             flag: '🇮🇱' },
-  tr: { label: 'Türkçe',            flag: '🇹🇷' },
-  zh: { label: '中文',              flag: '🇨🇳' },
-  ja: { label: '日本語',            flag: '🇯🇵' },
-  ko: { label: '한국어',            flag: '🇰🇷' },
-  hi: { label: 'हिन्दी',            flag: '🇮🇳' },
-  vi: { label: 'Tiếng Việt',        flag: '🇻🇳' },
-  id: { label: 'Bahasa Indonesia',  flag: '🇮🇩' },
+  fr: { label: 'Français',         flag: '🇫🇷' },
+  en: { label: 'English',          flag: '🇬🇧' },
+  es: { label: 'Español',          flag: '🇪🇸' },
+  de: { label: 'Deutsch',          flag: '🇩🇪' },
+  it: { label: 'Italiano',         flag: '🇮🇹' },
+  pt: { label: 'Português',        flag: '🇧🇷' },
+  nl: { label: 'Nederlands',       flag: '🇳🇱' },
+  pl: { label: 'Polski',           flag: '🇵🇱' },
+  ru: { label: 'Русский',          flag: '🇷🇺' },
+  uk: { label: 'Українська',       flag: '🇺🇦' },
+  ar: { label: 'العربية',          flag: '🇸🇦' },
+  fa: { label: 'فارسی',            flag: '🇮🇷' },
+  he: { label: 'עברית',            flag: '🇮🇱' },
+  tr: { label: 'Türkçe',           flag: '🇹🇷' },
+  zh: { label: '中文',             flag: '🇨🇳' },
+  ja: { label: '日本語',           flag: '🇯🇵' },
+  ko: { label: '한국어',           flag: '🇰🇷' },
+  hi: { label: 'हिन्दी',           flag: '🇮🇳' },
+  vi: { label: 'Tiếng Việt',       flag: '🇻🇳' },
+  id: { label: 'Bahasa Indonesia', flag: '🇮🇩' },
 };
 
 const STEPS = [
@@ -34,11 +37,27 @@ const STEPS = [
   { label: 'Terminé',        icon: '✅' },
 ];
 
-const FEATURES = [
-  { icon: '🎙️', title: 'Groq Whisper',       desc: 'Transcription audio ultra-rapide' },
-  { icon: '🤖', title: 'DeepSeek V3',        desc: 'Traduction naturelle par IA' },
-  { icon: '🎬', title: 'Sous-titres brûlés', desc: 'Rendu professionnel FFmpeg' },
-  { icon: '🔒', title: 'Watermark',          desc: 'spottedyou.org incrusté' },
+const BENEFITS = [
+  {
+    icon: '✨',
+    title: 'Comprenez tout',
+    desc: 'Plus besoin de chercher des traductions. Regardez n\'importe quelle vidéo dans votre langue.',
+  },
+  {
+    icon: '⚡',
+    title: 'En quelques minutes',
+    desc: 'Collez un lien, choisissez votre langue. Votre vidéo traduite est prête rapidement.',
+  },
+  {
+    icon: '📤',
+    title: 'Partagez à votre audience',
+    desc: 'Diffusez des contenus internationaux à votre communauté dans leur langue.',
+  },
+  {
+    icon: '🔒',
+    title: '100% privé',
+    desc: 'Vos vidéos sont stockées de façon sécurisée et accessibles uniquement par vous.',
+  },
 ];
 
 export default function Home() {
@@ -49,6 +68,23 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Animations hero
+  const [providerIdx, setProviderIdx] = useState(0);
+  const [flagIdx,     setFlagIdx]     = useState(0);
+  const [visible,     setVisible]     = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setProviderIdx(i => (i + 1) % PROVIDERS.length);
+        setFlagIdx(i => (i + 1) % FLAGS.length);
+        setVisible(true);
+      }, 250);
+    }, 2200);
+    return () => clearInterval(timer);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,31 +130,63 @@ export default function Home() {
             backgroundSize: '40px 40px',
           }}
         />
-        <div className="relative max-w-5xl mx-auto px-4 py-14 sm:py-20 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium mb-5">
+        <div className="relative max-w-5xl mx-auto px-4 py-16 sm:py-24 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            Transcription · Traduction · Sous-titres par IA
+            21 langues disponibles · Sous-titres inclus
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-4 leading-tight">
-            Traduisez vos vidéos<br />
+
+          {/* Titre animé */}
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight mb-6">
+            <span className="text-white">From </span>
+            <span
+              className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 transition-opacity duration-200"
+              style={{ opacity: visible ? 1 : 0 }}
+            >
+              {PROVIDERS[providerIdx]}
+            </span>
+            <br />
+            <span className="text-white">to </span>
+            <span
+              className="transition-opacity duration-200"
+              style={{ opacity: visible ? 1 : 0, fontSize: '1.1em' }}
+            >
+              {FLAGS[flagIdx]}
+            </span>
+            <span className="text-white"> in </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-              X &amp; YouTube
+              minutes
             </span>
           </h1>
-          <p className="text-sm sm:text-base text-gray-400 max-w-xl mx-auto mb-0 leading-relaxed">
-            Sous-titres brûlés en <strong className="text-white">21 langues</strong> — Groq Whisper + DeepSeek V3
+
+          <p className="text-sm sm:text-base text-gray-400 max-w-lg mx-auto mb-8 leading-relaxed">
+            Votre vidéo X ou YouTube traduite, sous-titrée et prête à partager — <strong className="text-white">sans effort</strong>.
           </p>
+
+          {/* CTA */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="#translate"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-blue-500/20"
+            >
+              🚀 Traduire une vidéo
+            </a>
+            <Link
+              href="/login"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold text-sm transition-colors border border-gray-700"
+            >
+              Créer un compte gratuit
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* ── FORMULAIRE / RÉSULTAT ── */}
-      <section className="border-b border-gray-800">
+      <section id="translate" className="border-b border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-10">
-
-          {/* Formulaire */}
           {!jobId && (
             <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-4">
-              {/* URL */}
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
                   Lien X (Twitter) ou YouTube
@@ -132,8 +200,6 @@ export default function Home() {
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
                 />
               </div>
-
-              {/* Langue */}
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
                   Langue cible
@@ -144,20 +210,15 @@ export default function Home() {
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors cursor-pointer"
                 >
                   {Object.entries(LANGS).map(([k, v]) => (
-                    <option key={k} value={k} className="bg-gray-900">
-                      {v.flag} {v.label}
-                    </option>
+                    <option key={k} value={k} className="bg-gray-900">{v.flag} {v.label}</option>
                   ))}
                 </select>
               </div>
-
-              {/* Erreur */}
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
                   ⚠️ {error}
                 </div>
               )}
-
               <button
                 type="submit"
                 disabled={loading}
@@ -171,18 +232,14 @@ export default function Home() {
                     </svg>
                     Envoi en cours…
                   </>
-                ) : (
-                  '🚀 Traduire la vidéo'
-                )}
+                ) : '🚀 Traduire la vidéo'}
               </button>
             </form>
           )}
 
-          {/* Progression */}
           {jobId && (
             <div className="max-w-lg mx-auto">
               <div className="bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden">
-                {/* Steps */}
                 <div className="px-6 pt-6 pb-4 border-b border-gray-800">
                   <div className="flex items-center justify-between gap-1 mb-4">
                     {STEPS.map((s, i) => {
@@ -197,15 +254,13 @@ export default function Home() {
                           }`}>
                             {done ? '✓' : s.icon}
                           </div>
-                          <span className={`text-[9px] text-center leading-tight hidden sm:block ${
-                            done || current ? 'text-gray-300' : 'text-gray-700'
-                          }`}>{s.label}</span>
+                          <span className={`text-[9px] text-center hidden sm:block ${done || current ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {s.label}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
-
-                  {/* Barre */}
                   <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                     <div
                       className="h-1.5 rounded-full transition-all duration-700 bg-gradient-to-r from-blue-600 to-cyan-400"
@@ -213,36 +268,25 @@ export default function Home() {
                     />
                   </div>
                   <div className="flex justify-between mt-1.5">
-                    <p className="text-[11px] text-gray-500">{status?.status_label || 'En attente du worker…'}</p>
+                    <p className="text-[11px] text-gray-500">{status?.status_label || 'Traitement en cours…'}</p>
                     <p className="text-[11px] text-gray-600 tabular-nums">{pct}%</p>
                   </div>
                 </div>
 
-                {/* Résultat done */}
                 {status?.status === 'done' && status?.storage_url && (
                   <div className="p-5 space-y-4">
-                    {/* Résumé IA */}
                     {status.summary && (
                       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">📝 Résumé IA</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Résumé</p>
                         <p className="text-xs text-gray-300 leading-relaxed">{status.summary}</p>
                       </div>
                     )}
-
-                    {/* Lecteur vidéo */}
                     <div className="relative rounded-xl overflow-hidden bg-black border border-gray-800">
-                      <video
-                        src={status.storage_url}
-                        controls
-                        className="w-full aspect-video"
-                        preload="metadata"
-                      />
+                      <video src={status.storage_url} controls className="w-full aspect-video" preload="metadata" />
                       <div className="absolute top-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-medium pointer-events-none">
                         spottedyou.org
                       </div>
                     </div>
-
-                    {/* Télécharger */}
                     {status.can_download ? (
                       <a
                         href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/jobs/${jobId}/download`}
@@ -253,32 +297,22 @@ export default function Home() {
                     ) : (
                       <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 text-center">
                         <p className="text-xs text-gray-400 mb-3">🔒 Connectez-vous pour télécharger</p>
-                        <Link
-                          href="/login"
-                          className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
-                        >
+                        <Link href="/login" className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">
                           Se connecter →
                         </Link>
                       </div>
                     )}
-
-                    <button
-                      onClick={reset}
-                      className="w-full px-5 py-2.5 rounded-xl border border-gray-800 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white text-xs font-medium transition-all"
-                    >
+                    <button onClick={reset} className="w-full px-5 py-2.5 rounded-xl border border-gray-800 bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white text-xs font-medium transition-all">
                       ↩ Traduire une autre vidéo
                     </button>
                   </div>
                 )}
 
-                {/* Erreur */}
                 {status?.status === 'error' && (
                   <div className="p-5">
                     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center space-y-3">
                       <p className="text-red-400 text-sm">❌ {status.error_msg || 'Une erreur est survenue'}</p>
-                      <button onClick={reset} className="text-xs text-gray-500 hover:text-white transition-colors underline">
-                        Réessayer
-                      </button>
+                      <button onClick={reset} className="text-xs text-gray-500 hover:text-white underline">Réessayer</button>
                     </div>
                   </div>
                 )}
@@ -288,18 +322,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
+      {/* ── BÉNÉFICES ── */}
       {!jobId && (
         <section className="border-b border-gray-800">
-          <div className="max-w-5xl mx-auto px-4 py-10">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-5">Comment ça marche</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {FEATURES.map(f => (
-                <div key={f.title} className="bg-gray-900/60 border border-gray-800 rounded-xl p-4">
-                  <div className="text-2xl mb-3">{f.icon}</div>
-                  <p className="text-xs font-semibold text-white mb-1">{f.title}</p>
-                  <p className="text-[11px] text-gray-500">{f.desc}</p>
+          <div className="max-w-5xl mx-auto px-4 py-12">
+            <div className="text-center mb-8">
+              <h2 className="text-lg font-bold text-white mb-1">Pourquoi SpottedYou Translator ?</h2>
+              <p className="text-sm text-gray-500">La barrière de la langue, c'est terminé.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {BENEFITS.map(b => (
+                <div key={b.title} className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors">
+                  <div className="text-3xl mb-3">{b.icon}</div>
+                  <p className="text-sm font-semibold text-white mb-1.5">{b.title}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">{b.desc}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── LANGUES DISPO ── */}
+      {!jobId && (
+        <section className="border-b border-gray-800">
+          <div className="max-w-5xl mx-auto px-4 py-10 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
+              {Object.keys(LANGS).length} langues disponibles
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {Object.entries(LANGS).map(([k, v]) => (
+                <span key={k} className="text-lg" title={v.label}>{v.flag}</span>
               ))}
             </div>
           </div>
@@ -311,9 +364,9 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-gray-600">© 2026 SpottedYou Translator</p>
           <div className="flex items-center gap-5">
-            <Link href="/library"  className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Mes vidéos</Link>
-            <Link href="/billing"  className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Abonnement</Link>
-            <Link href="/login"    className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Connexion</Link>
+            <Link href="/library" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Mes vidéos</Link>
+            <Link href="/billing" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Abonnement</Link>
+            <Link href="/login"   className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Connexion</Link>
           </div>
         </div>
       </footer>

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { login, register } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -8,44 +8,53 @@ export default function LoginPage() {
   const [mode, setMode]         = useState<'login' | 'register'>('login');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]       = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [success, setSuccess]   = useState<string | null>(null);
-  const [loading, setLoading]   = useState(false);
+
+  const { login, register, loading, error: authError } = useAuth();
   const router = useRouter();
+
+  const error = localError || authError;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setLocalError(null);
     setSuccess(null);
-    setLoading(true);
     try {
-      const res = mode === 'login'
-        ? await login(email, password)
-        : await register(email, password);
-      if (res.access_token) {
-        localStorage.setItem('access_token', res.access_token);
+      if (mode === 'login') {
+        await login(email, password);
         router.push('/');
       } else {
-        setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
+        const res = await register(email, password);
+        if (res?.access_token) {
+          router.push('/');
+        } else {
+          setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
+        }
       }
     } catch (err: any) {
-      setError(err?.detail || err?.message || 'Identifiants incorrects.');
-    } finally { setLoading(false); }
+      setLocalError(err?.message || 'Une erreur est survenue.');
+    }
   }
 
   return (
-    <main className="h-screen overflow-y-auto bg-gray-950 text-white flex flex-col items-center justify-center px-4">
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-base">
-              🌍
+            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
+              <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
             </div>
             <span className="text-sm font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">
               SpottedYou <span className="text-blue-400">Translator</span>
             </span>
           </Link>
+          <p className="text-xs text-gray-600 mt-2">
+            {mode === 'login' ? 'Bienvenue,' : 'Rejoignez-nous,'} traduisez des vidéos en 21 langues
+          </p>
         </div>
 
         <div className="bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden">
@@ -54,7 +63,7 @@ export default function LoginPage() {
             {(['login', 'register'] as const).map(m => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setError(null); setSuccess(null); }}
+                onClick={() => { setMode(m); setLocalError(null); setSuccess(null); }}
                 className={`flex-1 py-3 text-xs font-medium transition-colors ${
                   mode === m
                     ? 'bg-gray-800 text-white'
@@ -94,6 +103,9 @@ export default function LoginPage() {
                 minLength={mode === 'register' ? 8 : undefined}
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
+              {mode === 'register' && (
+                <p className="text-[10px] text-gray-600 mt-1">8 caractères minimum</p>
+              )}
             </div>
 
             {error && (
@@ -124,6 +136,12 @@ export default function LoginPage() {
                 mode === 'login' ? 'Se connecter →' : 'Créer mon compte →'
               )}
             </button>
+
+            {mode === 'register' && (
+              <p className="text-[10px] text-gray-600 text-center leading-relaxed">
+                En créant un compte, vous acceptez les conditions d'utilisation du service.
+              </p>
+            )}
           </form>
         </div>
 
