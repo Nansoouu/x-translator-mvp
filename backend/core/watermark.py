@@ -95,7 +95,7 @@ def _generate_watermark_png(
         # COUCHE 1 : Pattern diagonal répété
         # Méthode : générer un "tile" avec le texte incliné, puis le répliquer
         # ─────────────────────────────────────────────────────────────────────
-        DIAG_OPACITY = 55   # ~22% — bien visible sur toutes les vidéos
+        DIAG_OPACITY = 80   # ~31% — bien visible sur toutes les vidéos
         ANGLE        = -30  # degrés, sens horaire → monte vers la droite
 
         # Mesurer le texte
@@ -217,7 +217,9 @@ def add_watermark_video(
             cmd = [
                 "ffmpeg", "-y", "-nostdin",
                 "-i", in_path, "-i", wm_path,
-                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p",
+                "-filter_complex",
+                "[1:v]format=yuva420p[wm];[0:v][wm]overlay=0:0:shortest=1,format=yuv420p[out]",
+                "-map", "[out]",
                 "-map", "0:a:0?",
                 "-c:v", "libx264", "-crf", "18", "-preset", "fast",
                 "-c:a", "copy", "-movflags", "+faststart",
@@ -227,7 +229,7 @@ def add_watermark_video(
 
             if proc.returncode == 0 and os.path.exists(out_path):
                 size = os.path.getsize(out_path)
-                if size > 0:
+                if size > 10000:
                     with open(out_path, "rb") as f:
                         result = f.read()
                     print(f"[watermark] ✅ Vidéo watermarkée — {len(video_bytes)//1024}KB → {len(result)//1024}KB")
