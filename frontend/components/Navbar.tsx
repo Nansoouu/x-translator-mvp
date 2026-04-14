@@ -4,13 +4,9 @@ import Link from 'next/link';
 
 export default function Navbar() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     setLoggedIn(!!localStorage.getItem('access_token'));
-    const handler = () => setScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handler);
-    return () => window.removeEventListener('scroll', handler);
   }, []);
 
   function logout() {
@@ -19,52 +15,49 @@ export default function Navbar() {
   }
 
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/50 shadow-xl shadow-black/20'
-          : 'bg-transparent'
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+    <nav className="sticky top-0 z-50 border-b border-gray-800 bg-gray-950/90 backdrop-blur-md">
+      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg hover:opacity-90 transition">
-          <span className="text-2xl">🌍</span>
-          <span className="text-white">Spotted<span className="text-blue-400">You</span></span>
-          <span className="text-zinc-500 font-normal text-sm hidden sm:inline">Translator</span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sm">
+            🌍
+          </div>
+          <span className="text-sm font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">
+            SpottedYou <span className="text-blue-400">Translator</span>
+          </span>
         </Link>
 
-        {/* Nav */}
-        <nav className="flex items-center gap-1">
+        {/* Nav links */}
+        <div className="flex items-center gap-2">
           <Link
             href="/library"
-            className="text-zinc-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-zinc-800/60 transition"
+            className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800 hidden sm:block"
           >
-            📚 Mes vidéos
+            Mes vidéos
           </Link>
           <Link
             href="/billing"
-            className="text-zinc-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-zinc-800/60 transition"
+            className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800 hidden sm:block"
           >
-            💳 Abonnement
+            Abonnement
           </Link>
           {loggedIn ? (
             <button
               onClick={logout}
-              className="ml-2 text-zinc-400 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-zinc-800/60 transition"
+              className="text-xs text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
             >
               Déconnexion
             </button>
           ) : (
             <Link
               href="/login"
-              className="ml-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-lg shadow-blue-900/30"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors"
             >
-              Connexion
+              Connexion →
             </Link>
           )}
-        </nav>
+        </div>
       </div>
-    </header>
+    </nav>
   );
 }

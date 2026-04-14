@@ -29,38 +29,36 @@ export default function LoginPage() {
         setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
       }
     } catch (err: any) {
-      setError(err?.detail || err?.message || 'Erreur. Vérifiez vos identifiants.');
+      setError(err?.detail || err?.message || 'Identifiants incorrects.');
     } finally { setLoading(false); }
   }
 
   return (
-    <main className="min-h-screen bg-grid flex flex-col items-center justify-center px-4 py-20">
-      {/* Glow */}
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{ background: 'radial-gradient(ellipse 50% 50% at 50% 30%, rgba(59,130,246,0.08), transparent)' }}
-      />
-
-      <div className="relative w-full max-w-md">
+    <main className="h-screen overflow-y-auto bg-gray-950 text-white flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold">
-            <span className="text-3xl">🌍</span>
-            <span>Spotted<span className="text-blue-400">You</span> Translator</span>
+          <Link href="/" className="inline-flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-base">
+              🌍
+            </div>
+            <span className="text-sm font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">
+              SpottedYou <span className="text-blue-400">Translator</span>
+            </span>
           </Link>
         </div>
 
-        <div className="card p-8 shadow-2xl shadow-black/60">
+        <div className="bg-gray-900/60 border border-gray-800 rounded-2xl overflow-hidden">
           {/* Tabs */}
-          <div className="flex bg-zinc-800/60 rounded-xl p-1 mb-7">
+          <div className="flex border-b border-gray-800">
             {(['login', 'register'] as const).map(m => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setError(null); setSuccess(null); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
+                className={`flex-1 py-3 text-xs font-medium transition-colors ${
                   mode === m
-                    ? 'bg-zinc-700 text-white shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-300'
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
                 }`}
               >
                 {m === 'login' ? 'Connexion' : 'Créer un compte'}
@@ -68,9 +66,9 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5 block">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
                 Email
               </label>
               <input
@@ -79,12 +77,12 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="vous@exemple.com"
-                className="input-base"
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5 block">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
                 Mot de passe
               </label>
               <input
@@ -92,47 +90,45 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                placeholder={mode === 'register' ? '8 caractères minimum' : '••••••••'}
+                placeholder="••••••••"
                 minLength={mode === 'register' ? 8 : undefined}
-                className="input-base"
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
             </div>
 
             {error && (
-              <div className="flex gap-2 items-start bg-red-950/50 border border-red-900/50 text-red-400 text-sm p-3 rounded-xl">
-                <span className="shrink-0 mt-0.5">⚠️</span><p>{error}</p>
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
+                ⚠️ {error}
               </div>
             )}
             {success && (
-              <div className="flex gap-2 items-start bg-emerald-950/50 border border-emerald-900/50 text-emerald-400 text-sm p-3 rounded-xl">
-                <span className="shrink-0 mt-0.5">✅</span><p>{success}</p>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-xl">
+                ✅ {success}
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="btn-primary text-base py-3.5 mt-2">
-              {loading
-                ? <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    Chargement…
-                  </span>
-                : mode === 'login' ? 'Se connecter →' : "Créer mon compte →"
-              }
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-lg shadow-blue-500/20"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Chargement…
+                </>
+              ) : (
+                mode === 'login' ? 'Se connecter →' : 'Créer mon compte →'
+              )}
             </button>
           </form>
-
-          {mode === 'login' && (
-            <p className="text-center text-zinc-500 text-xs mt-5">
-              En continuant, vous acceptez nos{' '}
-              <span className="text-zinc-400">conditions d'utilisation</span>.
-            </p>
-          )}
         </div>
 
         <p className="text-center mt-5">
-          <Link href="/" className="text-zinc-600 hover:text-zinc-400 text-sm transition">
+          <Link href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
             ← Retour à l'accueil
           </Link>
         </p>

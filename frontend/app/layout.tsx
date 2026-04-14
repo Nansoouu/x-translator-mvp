@@ -9,12 +9,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body className="min-h-screen bg-zinc-950 text-white antialiased">
+    <html lang="fr">
+      <body className="antialiased bg-gray-950 text-white overflow-x-hidden">
         <Navbar />
         {children}
       </body>

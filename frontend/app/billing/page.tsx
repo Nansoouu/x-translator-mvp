@@ -5,40 +5,40 @@ import Link from 'next/link';
 
 const PLANS = [
   {
-    id:       'free',
-    name:     'Gratuit',
-    price:    '0 €',
-    period:   '',
-    desc:     'Pour découvrir le service',
-    features: ['3 vidéos à l\'inscription', 'Watermark spottedyou.org', 'Toutes les langues'],
-    cta:      null,
+    id: 'free',
+    name: 'Gratuit',
+    price: '0 €',
+    period: '',
+    desc: 'Pour découvrir le service',
+    features: ['3 vidéos à l\'inscription', 'Watermark spottedyou.org', '21 langues disponibles'],
+    cta: null,
     highlight: false,
   },
   {
-    id:       'monthly',
-    name:     'Pro',
-    price:    '10 €',
-    period:   '/mois',
-    desc:     'Pour un usage régulier',
-    features: ['Vidéos illimitées', 'Téléchargement sans limite', 'Toutes les langues', 'Priorité de traitement'],
-    cta:      'S\'abonner',
+    id: 'monthly',
+    name: 'Pro',
+    price: '10 €',
+    period: '/mois',
+    desc: 'Pour un usage régulier',
+    features: ['Vidéos illimitées', 'Téléchargement sans limite', '21 langues disponibles', 'Priorité de traitement'],
+    cta: 'S\'abonner',
     highlight: true,
   },
   {
-    id:       'credits_10',
-    name:     'Pack 10 vidéos',
-    price:    '5 €',
-    period:   '',
-    desc:     'Sans engagement',
-    features: ['10 crédits vidéo', 'N\'expire pas', 'Toutes les langues', 'Téléchargements inclus'],
-    cta:      'Acheter',
+    id: 'credits_10',
+    name: 'Pack 10 vidéos',
+    price: '5 €',
+    period: '',
+    desc: 'Sans engagement',
+    features: ['10 crédits vidéo', 'N\'expire pas', '21 langues disponibles', 'Téléchargements inclus'],
+    cta: 'Acheter',
     highlight: false,
   },
 ];
 
 export default function BillingPage() {
-  const [billing, setBilling] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [billing, setBilling]               = useState<any>(null);
+  const [loading, setLoading]               = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,66 +57,60 @@ export default function BillingPage() {
   }
 
   return (
-    <main className="min-h-screen pt-24 pb-16 px-4">
-      {/* Glow */}
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{ background: 'radial-gradient(ellipse 50% 30% at 50% 0%, rgba(139,92,246,0.07), transparent)' }}
-      />
+    <main className="h-screen overflow-y-auto bg-gray-950 text-white">
+      <div className="max-w-5xl mx-auto px-4 py-10">
 
-      <div className="relative max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold mb-3">
-            Choisissez votre <span className="gradient-text">plan</span>
+        <div className="text-center mb-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            Choisissez votre{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">plan</span>
           </h1>
-          <p className="text-zinc-400">Simple, transparent. Sans frais cachés.</p>
+          <p className="text-sm text-gray-400">Simple, transparent. Sans frais cachés.</p>
 
-          {/* Current plan badge */}
           {!loading && billing && (
-            <div className="inline-flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-full mt-4 text-sm">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full" />
-              Plan actuel :
-              <span className="font-semibold text-white capitalize">{billing.plan}</span>
-              <span className="text-zinc-500">·</span>
-              <span className="text-zinc-400">{billing.credits_remaining} crédit(s)</span>
+            <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-gray-900 border border-gray-800 text-xs">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+              Plan actuel : <span className="font-semibold text-white capitalize">{billing.plan}</span>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-400">{billing.credits_remaining} crédit(s)</span>
             </div>
           )}
         </div>
 
-        {/* Pricing cards */}
-        <div className="grid sm:grid-cols-3 gap-4">
+        {/* Cards */}
+        <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
           {PLANS.map(plan => (
             <div
               key={plan.id}
-              className={`relative rounded-2xl p-6 flex flex-col transition-all duration-200 ${
+              className={`relative rounded-2xl p-5 flex flex-col transition-all ${
                 plan.highlight
-                  ? 'bg-gradient-to-b from-blue-950/80 to-zinc-900/80 border-2 border-blue-600/60 shadow-2xl shadow-blue-900/20'
-                  : 'bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700'
+                  ? 'bg-blue-500/5 border-2 border-blue-500/40 hover:border-blue-500/60 shadow-lg shadow-blue-500/10'
+                  : 'bg-gray-900/60 border border-gray-800 hover:border-gray-700'
               }`}
             >
               {plan.highlight && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-600 text-white">
                     ✨ Populaire
                   </span>
                 </div>
               )}
 
-              <div className="mb-5">
-                <h2 className="text-lg font-bold mb-1">{plan.name}</h2>
-                <p className="text-zinc-500 text-sm">{plan.desc}</p>
+              <div className="mb-4">
+                <h2 className="text-sm font-bold text-white mb-0.5">{plan.name}</h2>
+                <p className="text-[11px] text-gray-500">{plan.desc}</p>
               </div>
 
               <div className="mb-5">
-                <span className="text-4xl font-extrabold">{plan.price}</span>
-                {plan.period && <span className="text-zinc-400 text-sm">{plan.period}</span>}
+                <span className="text-3xl font-extrabold text-white">{plan.price}</span>
+                {plan.period && <span className="text-sm text-gray-500">{plan.period}</span>}
               </div>
 
-              <ul className="space-y-2.5 flex-1 mb-6">
+              <ul className="space-y-2 flex-1 mb-5">
                 {plan.features.map(f => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-zinc-300">
-                    <span className="text-emerald-400 mt-0.5 shrink-0">✓</span>
+                  <li key={f} className="flex items-start gap-2 text-xs text-gray-300">
+                    <span className="text-emerald-400 shrink-0 mt-0.5">✓</span>
                     {f}
                   </li>
                 ))}
@@ -126,40 +120,37 @@ export default function BillingPage() {
                 <button
                   onClick={() => handleCheckout(plan.id)}
                   disabled={checkoutLoading === plan.id}
-                  className={`w-full font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 ${
                     plan.highlight
-                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30'
-                      : 'bg-violet-700 hover:bg-violet-600 text-white'
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                      : 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700'
                   }`}
                 >
-                  {checkoutLoading === plan.id
-                    ? <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                        </svg>
-                        Redirection…
-                      </span>
-                    : plan.cta
-                  }
+                  {checkoutLoading === plan.id ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      Redirection…
+                    </>
+                  ) : plan.cta}
                 </button>
               ) : (
-                <div className="w-full text-center py-3 text-zinc-500 text-sm border border-zinc-800 rounded-xl">
-                  Plan actuel par défaut
+                <div className="w-full text-center py-2.5 text-xs text-gray-600 border border-gray-800 rounded-xl">
+                  Plan par défaut
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Guarantee */}
-        <div className="mt-10 text-center text-zinc-600 text-sm flex items-center justify-center gap-2">
-          <span>🔒</span>
-          Paiement sécurisé par Stripe · Annulation à tout moment
-        </div>
+        <p className="text-center text-[11px] text-gray-600 mt-8 flex items-center justify-center gap-2">
+          🔒 Paiement sécurisé par Stripe · Annulation à tout moment
+        </p>
 
-        <p className="text-center mt-8">
-          <Link href="/" className="text-zinc-600 hover:text-zinc-400 text-sm transition">
+        <p className="text-center mt-6">
+          <Link href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
             ← Retour à l'accueil
           </Link>
         </p>
