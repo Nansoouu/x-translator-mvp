@@ -116,7 +116,21 @@
     "addLangClose": "Schließen",
     "addLangSuccess": "{lang}-Übersetzung zur Warteschlange hinzugefügt!",
     "addLangLaunching": "{lang}-Übersetzung gestartet…",
-    "multiActiveLabel": "{count}-Übersetzungen in Bearbeitung…"
+    "multiActiveLabel": "{count}-Übersetzungen in Bearbeitung…",
+    "videoNotAvailable": "Video für diese Sprache nicht verfügbar",
+    "languagesAvailable": "Verfügbare Sprachen",
+    "downloadThisVersion": "⬇ Herunterladen",
+    "addTranslation": "Fügen Sie eine Übersetzung hinzu",
+    "loginToAdd": "Zum Hinzufügen anmelden",
+    "versionsAvailable": "{n}-Version{s} verfügbar{s}",
+    "shortDate": "{date}",
+    "close": "Schließen",
+    "publicLibrarySubtitle": "{count}-Video{s} übersetzt{s} von der Community",
+    "publicLibraryEmpty": "Noch keine öffentlichen Videos",
+    "doneBadge": "Fertig",
+    "activeBadge": "Im Gange",
+    "errorBadge": "Fehler",
+    "summaryLabel": "Zusammenfassung"
   },
   "LoginPage": {
     "title": "Verbindung",

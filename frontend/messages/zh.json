@@ -116,7 +116,21 @@
     "addLangClose": "关闭",
     "addLangSuccess": "{lang} 翻译已添加到队列中！",
     "addLangLaunching": "{lang} 翻译推出...",
-    "multiActiveLabel": "{count} 翻译正在进行中……"
+    "multiActiveLabel": "{count} 翻译正在进行中……",
+    "videoNotAvailable": "视频不适用于该语言",
+    "languagesAvailable": "可用语言",
+    "downloadThisVersion": "⬇ 下载",
+    "addTranslation": "添加翻译",
+    "loginToAdd": "登录后添加",
+    "versionsAvailable": "{n}版本{s}可用{s}",
+    "shortDate": "{date}",
+    "close": "关闭",
+    "publicLibrarySubtitle": "{count} 视频{s} 社区翻译的{s}",
+    "publicLibraryEmpty": "还没有公开视频",
+    "doneBadge": "完成的",
+    "activeBadge": "进行中",
+    "errorBadge": "错误",
+    "summaryLabel": "概括"
   },
   "LoginPage": {
     "title": "联系",

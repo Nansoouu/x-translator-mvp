@@ -116,7 +116,21 @@
     "addLangClose": "Cerca",
     "addLangSuccess": "¡Se agregó la traducción {lang} a la cola!",
     "addLangLaunching": "Se lanzó la traducción {lang}...",
-    "multiActiveLabel": "Traducciones {count} en progreso..."
+    "multiActiveLabel": "Traducciones {count} en progreso...",
+    "videoNotAvailable": "Vídeo no disponible para este idioma.",
+    "languagesAvailable": "Idiomas disponibles",
+    "downloadThisVersion": "⬇ Descargar",
+    "addTranslation": "Añadir una traducción",
+    "loginToAdd": "Inicia sesión para agregar",
+    "versionsAvailable": "Versión {n}{s} disponible{s}",
+    "shortDate": "{date}",
+    "close": "Cerca",
+    "publicLibrarySubtitle": "Vídeo {count}{s} traducido{s} por la comunidad",
+    "publicLibraryEmpty": "Aún no hay vídeos públicos",
+    "doneBadge": "Finalizado",
+    "activeBadge": "En curso",
+    "errorBadge": "Error",
+    "summaryLabel": "Resumen"
   },
   "LoginPage": {
     "title": "Conexión",

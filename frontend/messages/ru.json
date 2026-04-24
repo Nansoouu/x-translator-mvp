@@ -116,7 +116,21 @@
     "addLangClose": "Закрывать",
     "addLangSuccess": "Перевод {lang} добавлен в очередь!",
     "addLangLaunching": "Запущен перевод {lang}…",
-    "multiActiveLabel": "Переводы {count} выполняются…"
+    "multiActiveLabel": "Переводы {count} выполняются…",
+    "videoNotAvailable": "Видео недоступно для этого языка",
+    "languagesAvailable": "Доступные языки",
+    "downloadThisVersion": "⬇ Скачать",
+    "addTranslation": "Добавить перевод",
+    "loginToAdd": "Войдите, чтобы добавить",
+    "versionsAvailable": "Версия {n} Доступна версия {s}{s}",
+    "shortDate": "{date}",
+    "close": "Закрывать",
+    "publicLibrarySubtitle": "Видео {count}{s}, переведенное сообществом {s}",
+    "publicLibraryEmpty": "Общедоступных видео пока нет",
+    "doneBadge": "Законченный",
+    "activeBadge": "В ходе выполнения",
+    "errorBadge": "Ошибка",
+    "summaryLabel": "Краткое содержание"
   },
   "LoginPage": {
     "title": "Связь",

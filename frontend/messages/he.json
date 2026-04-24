@@ -116,7 +116,21 @@
     "addLangClose": "לִסְגוֹר",
     "addLangSuccess": "תרגום {lang} נוסף לתור!",
     "addLangLaunching": "תרגום {lang} הושק...",
-    "multiActiveLabel": "תרגומי {count} מתבצעים..."
+    "multiActiveLabel": "תרגומי {count} מתבצעים...",
+    "videoNotAvailable": "הסרטון אינו זמין עבור שפה זו",
+    "languagesAvailable": "שפות זמינות",
+    "downloadThisVersion": "⬇ הורד",
+    "addTranslation": "הוסף תרגום",
+    "loginToAdd": "היכנס כדי להוסיף",
+    "versionsAvailable": "גרסת {n}{s} זמינה{s}",
+    "shortDate": "{date}",
+    "close": "לִסְגוֹר",
+    "publicLibrarySubtitle": "{count} video{s} תורגם {s} על ידי הקהילה",
+    "publicLibraryEmpty": "עדיין אין סרטונים ציבוריים",
+    "doneBadge": "גָמוּר",
+    "activeBadge": "בתהליך",
+    "errorBadge": "שְׁגִיאָה",
+    "summaryLabel": "תַקצִיר"
   },
   "LoginPage": {
     "title": "קֶשֶׁר",

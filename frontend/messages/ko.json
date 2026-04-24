@@ -116,7 +116,21 @@
     "addLangClose": "닫다",
     "addLangSuccess": "{lang} 번역이 대기열에 추가되었습니다!",
     "addLangLaunching": "{lang} 번역 개시…",
-    "multiActiveLabel": "{count} 번역 진행 중…"
+    "multiActiveLabel": "{count} 번역 진행 중…",
+    "videoNotAvailable": "이 언어로는 동영상을 볼 수 없습니다.",
+    "languagesAvailable": "사용 가능한 언어",
+    "downloadThisVersion": "⬇ 다운로드",
+    "addTranslation": "번역 추가",
+    "loginToAdd": "추가하려면 로그인하세요.",
+    "versionsAvailable": "{n} 버전{s} 사용 가능{s}",
+    "shortDate": "{date}",
+    "close": "닫다",
+    "publicLibrarySubtitle": "{count} 비디오{s}은 커뮤니티에 의해 {s}로 번역되었습니다.",
+    "publicLibraryEmpty": "아직 공개 동영상이 없습니다.",
+    "doneBadge": "완성된",
+    "activeBadge": "진행 중",
+    "errorBadge": "오류",
+    "summaryLabel": "요약"
   },
   "LoginPage": {
     "title": "연결",

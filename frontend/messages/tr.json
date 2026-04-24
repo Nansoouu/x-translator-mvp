@@ -116,7 +116,21 @@
     "addLangClose": "Kapalı",
     "addLangSuccess": "{lang} çevirisi sıraya eklendi!",
     "addLangLaunching": "{lang} çevirisi başlatıldı…",
-    "multiActiveLabel": "{count} çevirileri devam ediyor…"
+    "multiActiveLabel": "{count} çevirileri devam ediyor…",
+    "videoNotAvailable": "Bu dilde video mevcut değil",
+    "languagesAvailable": "Mevcut diller",
+    "downloadThisVersion": "⬇ İndir",
+    "addTranslation": "Çeviri ekle",
+    "loginToAdd": "Eklemek için giriş yapın",
+    "versionsAvailable": "{n} sürümü{s} mevcut{s}",
+    "shortDate": "{date}",
+    "close": "Kapalı",
+    "publicLibrarySubtitle": "{count} video{s}, topluluk tarafından {s}'ye çevrildi",
+    "publicLibraryEmpty": "Henüz herkese açık video yok",
+    "doneBadge": "Bitti",
+    "activeBadge": "Devam etmekte",
+    "errorBadge": "Hata",
+    "summaryLabel": "Özet"
   },
   "LoginPage": {
     "title": "Bağlantı",

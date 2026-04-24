@@ -988,6 +988,37 @@ async def submit_job(
 
     async with get_conn() as conn:
 
+        # ── Cache : URL + langue déjà traduite (public ou pour cet user) ──────
+        if body.mode == "translate":
+            existing = None
+            if user_id:
+                # D'abord ses propres jobs
+                existing = await conn.fetchrow(
+                    """
+                    SELECT id FROM jobs
+                    WHERE source_url=$1 AND target_lang=$2 AND user_id=$3 AND status='done'
+                    ORDER BY created_at DESC LIMIT 1
+                    """,
+                    url, body.target_lang, uuid.UUID(user_id),
+                )
+            if not existing:
+                # Fallback : jobs publics (aucun user_id) ou anonymes
+                existing = await conn.fetchrow(
+                    """
+                    SELECT id FROM jobs
+                    WHERE source_url=$1 AND target_lang=$2 AND user_id IS NULL AND status='done'
+                    ORDER BY created_at DESC LIMIT 1
+                    """,
+                    url, body.target_lang,
+                )
+            if existing:
+                return {
+                    "job_id":         str(existing["id"]),
+                    "status":         "done",
+                    "cached":         True,
+                    "queue_position": 0,
+                }
+
         # ── Vérification quota si user connecté ───────────────────────────────
         if user_id:
             sub = await conn.fetchrow(
@@ -1004,24 +1035,6 @@ async def submit_job(
                             "upgrade_url": "/billing",
                         },
                     )
-
-        # ── Cache : même URL + même langue déjà traduit par cet user ──────────
-        if user_id and body.mode == "translate":
-            existing = await conn.fetchrow(
-                """
-                SELECT id FROM jobs
-                WHERE source_url=$1 AND target_lang=$2 AND user_id=$3 AND status='done'
-                ORDER BY created_at DESC LIMIT 1
-                """,
-                url, body.target_lang, uuid.UUID(user_id),
-            )
-            if existing:
-                return {
-                    "job_id":         str(existing["id"]),
-                    "status":         "done",
-                    "cached":         True,
-                    "queue_position": 0,
-                }
 
         # ── Position dans la file ──────────────────────────────────────────────
         q_row = await conn.fetchrow(

@@ -116,7 +116,21 @@
     "addLangClose": "Dichtbij",
     "addLangSuccess": "{lang}-vertaling toegevoegd aan wachtrij!",
     "addLangLaunching": "{lang}-vertaling gelanceerd…",
-    "multiActiveLabel": "{count} vertalingen in uitvoering..."
+    "multiActiveLabel": "{count} vertalingen in uitvoering...",
+    "videoNotAvailable": "Video niet beschikbaar voor deze taal",
+    "languagesAvailable": "Talen beschikbaar",
+    "downloadThisVersion": "⬇ Downloaden",
+    "addTranslation": "Voeg een vertaling toe",
+    "loginToAdd": "Log in om toe te voegen",
+    "versionsAvailable": "{n} versie{s} beschikbaar{s}",
+    "shortDate": "{date}",
+    "close": "Dichtbij",
+    "publicLibrarySubtitle": "{count} video{s} vertaald{s} door de community",
+    "publicLibraryEmpty": "Nog geen openbare video's",
+    "doneBadge": "Afgerond",
+    "activeBadge": "In uitvoering",
+    "errorBadge": "Fout",
+    "summaryLabel": "Samenvatting"
   },
   "LoginPage": {
     "title": "Verbinding",

@@ -116,7 +116,21 @@
     "addLangClose": "Vicino",
     "addLangSuccess": "Traduzione {lang} aggiunta alla coda!",
     "addLangLaunching": "Lancio della traduzione {lang}...",
-    "multiActiveLabel": "Traduzioni {count} in corso..."
+    "multiActiveLabel": "Traduzioni {count} in corso...",
+    "videoNotAvailable": "Video non disponibile per questa lingua",
+    "languagesAvailable": "Lingue disponibili",
+    "downloadThisVersion": "⬇ Scarica",
+    "addTranslation": "Aggiungi una traduzione",
+    "loginToAdd": "Accedi per aggiungere",
+    "versionsAvailable": "Versione {n}{s} disponibile{s}",
+    "shortDate": "{date}",
+    "close": "Vicino",
+    "publicLibrarySubtitle": "{count} video{s} tradotto{s} dalla comunità",
+    "publicLibraryEmpty": "Nessun video pubblico ancora",
+    "doneBadge": "Finito",
+    "activeBadge": "In corso",
+    "errorBadge": "Errore",
+    "summaryLabel": "Riepilogo"
   },
   "LoginPage": {
     "title": "Connessione",

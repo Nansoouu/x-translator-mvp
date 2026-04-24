@@ -116,7 +116,21 @@
     "addLangClose": "近い",
     "addLangSuccess": "{lang} 翻訳がキューに追加されました。",
     "addLangLaunching": "{lang} 翻訳が開始されました…",
-    "multiActiveLabel": "{count} の翻訳が進行中です…"
+    "multiActiveLabel": "{count} の翻訳が進行中です…",
+    "videoNotAvailable": "この言語ではビデオを利用できません",
+    "languagesAvailable": "利用可能な言語",
+    "downloadThisVersion": "⬇ ダウンロード",
+    "addTranslation": "翻訳を追加する",
+    "loginToAdd": "追加するにはログインしてください",
+    "versionsAvailable": "{n} バージョン{s} が利用可能{s}",
+    "shortDate": "{date}",
+    "close": "近い",
+    "publicLibrarySubtitle": "{count} ビデオ{s} コミュニティによる翻訳{s}",
+    "publicLibraryEmpty": "まだ公開動画はありません",
+    "doneBadge": "終了した",
+    "activeBadge": "進行中",
+    "errorBadge": "エラー",
+    "summaryLabel": "まとめ"
   },
   "LoginPage": {
     "title": "繋がり",

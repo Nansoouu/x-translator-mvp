@@ -116,7 +116,21 @@
     "addLangClose": "بستن",
     "addLangSuccess": "ترجمه {lang} به صف اضافه شد!",
     "addLangLaunching": "ترجمه {lang} راه اندازی شد…",
-    "multiActiveLabel": "ترجمه {count} در حال انجام است…"
+    "multiActiveLabel": "ترجمه {count} در حال انجام است…",
+    "videoNotAvailable": "ویدیو برای این زبان در دسترس نیست",
+    "languagesAvailable": "زبان های موجود",
+    "downloadThisVersion": "⬇ دانلود کنید",
+    "addTranslation": "ترجمه اضافه کنید",
+    "loginToAdd": "برای افزودن وارد شوید",
+    "versionsAvailable": "نسخه {n}{s} موجود{s}",
+    "shortDate": "{date}",
+    "close": "بستن",
+    "publicLibrarySubtitle": "{count} video{s} {s} توسط انجمن ترجمه شده است",
+    "publicLibraryEmpty": "هنوز ویدیوی عمومی وجود ندارد",
+    "doneBadge": "تمام شد",
+    "activeBadge": "در حال انجام است",
+    "errorBadge": "خطا",
+    "summaryLabel": "خلاصه"
   },
   "LoginPage": {
     "title": "اتصال",

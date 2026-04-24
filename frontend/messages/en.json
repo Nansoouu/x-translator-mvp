@@ -10,7 +10,7 @@
   "HomePage": {
     "heroTitle": "Translate any video",
     "heroSubtitle": "Natural subtitles, ultra-precise translation, export ready to publish. No need to pay $30/month for that.",
-    "miniProof": "Used by creators going global, no forced subscription",
+    "miniProof": "Used by creators who are booming internationally!",
     "heroBadge": "21 languages · 8 platforms · Subtitles included",
     "ctaTranslate": "🚀 Translate a video",
     "ctaRegister": "Create a free account",
@@ -80,7 +80,6 @@
     "langsTitle": "{count} languages available",
     "footerCopyright": "© 2026 SpottedYou Translator · Built with ❤️",
     "chooseLang": "🌐 Choose a language above",
-    "miniProof": "Used by creators who are booming internationally!",
     "counterVideos": "Videos translated",
     "counterMinutes": "Minutes of content",
     "counterToday": "Today"
@@ -117,7 +116,21 @@
     "addLangClose": "Close",
     "addLangSuccess": "{lang} translation added to queue!",
     "addLangLaunching": "{lang} translation launched…",
-    "multiActiveLabel": "{count} translations in progress…"
+    "multiActiveLabel": "{count} translations in progress…",
+    "videoNotAvailable": "Video not available for this language",
+    "languagesAvailable": "Available languages",
+    "downloadThisVersion": "⬇ Download",
+    "addTranslation": "Add a translation",
+    "loginToAdd": "Log in to add",
+    "versionsAvailable": "{n} version{s} available{s}",
+    "close": "Close",
+    "publicLibrarySubtitle": "{count} video{s} translated by the community",
+    "doneBadge": "Done",
+    "activeBadge": "In progress",
+    "errorBadge": "Error",
+    "summaryLabel": "Summary",
+    "shortDate": "{date}",
+    "publicLibraryEmpty": "No public videos yet"
   },
   "LoginPage": {
     "title": "Login",

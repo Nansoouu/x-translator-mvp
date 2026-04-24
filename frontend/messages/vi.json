@@ -116,7 +116,21 @@
     "addLangClose": "Đóng",
     "addLangSuccess": "Bản dịch {lang} được thêm vào hàng đợi!",
     "addLangLaunching": "Ra mắt bản dịch {lang}…",
-    "multiActiveLabel": "Đang tiến hành bản dịch {count}…"
+    "multiActiveLabel": "Đang tiến hành bản dịch {count}…",
+    "videoNotAvailable": "Video không có sẵn cho ngôn ngữ này",
+    "languagesAvailable": "Ngôn ngữ có sẵn",
+    "downloadThisVersion": "⬇ Tải xuống",
+    "addTranslation": "Thêm bản dịch",
+    "loginToAdd": "Đăng nhập để thêm",
+    "versionsAvailable": "Phiên bản {n} có sẵn {s} {s}",
+    "shortDate": "{date}",
+    "close": "Đóng",
+    "publicLibrarySubtitle": "{count} video{s} được cộng đồng dịch{s}",
+    "publicLibraryEmpty": "Chưa có video công khai nào",
+    "doneBadge": "Hoàn thành",
+    "activeBadge": "Đang tiến hành",
+    "errorBadge": "Lỗi",
+    "summaryLabel": "Bản tóm tắt"
   },
   "LoginPage": {
     "title": "Sự liên quan",

@@ -116,7 +116,21 @@
     "addLangClose": "Zamknąć",
     "addLangSuccess": "Tłumaczenie {lang} dodane do kolejki!",
     "addLangLaunching": "Uruchomiono tłumaczenie {lang}…",
-    "multiActiveLabel": "Trwają tłumaczenia {count}…"
+    "multiActiveLabel": "Trwają tłumaczenia {count}…",
+    "videoNotAvailable": "Film nie jest dostępny dla tego języka",
+    "languagesAvailable": "Dostępne języki",
+    "downloadThisVersion": "⬇ Pobierz",
+    "addTranslation": "Dodaj tłumaczenie",
+    "loginToAdd": "Zaloguj się, aby dodać",
+    "versionsAvailable": "Wersja {n}{s} dostępna{s}",
+    "shortDate": "{date}",
+    "close": "Zamknąć",
+    "publicLibrarySubtitle": "{count} wideo{s} przetłumaczone{s} przez społeczność",
+    "publicLibraryEmpty": "Nie ma jeszcze żadnych filmów publicznych",
+    "doneBadge": "Gotowy",
+    "activeBadge": "W toku",
+    "errorBadge": "Błąd",
+    "summaryLabel": "Streszczenie"
   },
   "LoginPage": {
     "title": "Połączenie",

@@ -116,7 +116,21 @@
     "addLangClose": "يغلق",
     "addLangSuccess": "تمت إضافة ترجمة {lang} إلى قائمة الانتظار!",
     "addLangLaunching": "تم إطلاق ترجمة {lang}...",
-    "multiActiveLabel": "ترجمات {count} قيد التقدم…"
+    "multiActiveLabel": "ترجمات {count} قيد التقدم…",
+    "videoNotAvailable": "الفيديو غير متوفر لهذه اللغة",
+    "languagesAvailable": "اللغات المتاحة",
+    "downloadThisVersion": "⬇ تحميل",
+    "addTranslation": "أضف ترجمة",
+    "loginToAdd": "قم بتسجيل الدخول للإضافة",
+    "versionsAvailable": "إصدار {n}{s} متاح{s}",
+    "shortDate": "{date}",
+    "close": "يغلق",
+    "publicLibrarySubtitle": "فيديو {count} {s} مترجم {s} من قبل المجتمع",
+    "publicLibraryEmpty": "لا توجد مقاطع فيديو عامة حتى الآن",
+    "doneBadge": "انتهى",
+    "activeBadge": "في تَقَدم",
+    "errorBadge": "خطأ",
+    "summaryLabel": "ملخص"
   },
   "LoginPage": {
     "title": "اتصال",

@@ -116,7 +116,21 @@
     "addLangClose": "Menutup",
     "addLangSuccess": "Terjemahan {lang} ditambahkan ke antrian!",
     "addLangLaunching": "Terjemahan {lang} diluncurkan…",
-    "multiActiveLabel": "Terjemahan {count} sedang berlangsung…"
+    "multiActiveLabel": "Terjemahan {count} sedang berlangsung…",
+    "videoNotAvailable": "Video tidak tersedia untuk bahasa ini",
+    "languagesAvailable": "Bahasa tersedia",
+    "downloadThisVersion": "⬇ Unduh",
+    "addTranslation": "Tambahkan terjemahan",
+    "loginToAdd": "Masuk untuk menambahkan",
+    "versionsAvailable": "Versi {n}{s} tersedia{s}",
+    "shortDate": "{date}",
+    "close": "Menutup",
+    "publicLibrarySubtitle": "Video {count}{s} diterjemahkan{s} oleh komunitas",
+    "publicLibraryEmpty": "Belum ada video publik",
+    "doneBadge": "Selesai",
+    "activeBadge": "Sedang berlangsung",
+    "errorBadge": "Kesalahan",
+    "summaryLabel": "Ringkasan"
   },
   "LoginPage": {
     "title": "Koneksi",

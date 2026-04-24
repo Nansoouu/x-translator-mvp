@@ -116,7 +116,21 @@
     "addLangClose": "बंद करना",
     "addLangSuccess": "{lang} अनुवाद कतार में जोड़ा गया!",
     "addLangLaunching": "{lang} अनुवाद लॉन्च किया गया...",
-    "multiActiveLabel": "{count} अनुवाद प्रगति पर है..."
+    "multiActiveLabel": "{count} अनुवाद प्रगति पर है...",
+    "videoNotAvailable": "इस भाषा के लिए वीडियो उपलब्ध नहीं है",
+    "languagesAvailable": "भाषाएँ उपलब्ध हैं",
+    "downloadThisVersion": "⬇ डाउनलोड करें",
+    "addTranslation": "एक अनुवाद जोड़ें",
+    "loginToAdd": "जोड़ने के लिए लॉग इन करें",
+    "versionsAvailable": "{n} संस्करण{s} उपलब्ध{s}",
+    "shortDate": "{date}",
+    "close": "बंद करना",
+    "publicLibrarySubtitle": "समुदाय द्वारा {count} वीडियो{s} अनुवादित{s}",
+    "publicLibraryEmpty": "अभी तक कोई सार्वजनिक वीडियो नहीं",
+    "doneBadge": "खत्म",
+    "activeBadge": "प्रगति पर है",
+    "errorBadge": "गलती",
+    "summaryLabel": "सारांश"
   },
   "LoginPage": {
     "title": "संबंध",

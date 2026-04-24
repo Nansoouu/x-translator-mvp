@@ -116,7 +116,21 @@
     "addLangClose": "Закрити",
     "addLangSuccess": "Переклад {lang} додано до черги!",
     "addLangLaunching": "Запущено переклад {lang}…",
-    "multiActiveLabel": "Виконується переклад {count}…"
+    "multiActiveLabel": "Виконується переклад {count}…",
+    "videoNotAvailable": "Відео недоступне для цієї мови",
+    "languagesAvailable": "Доступні мови",
+    "downloadThisVersion": "⬇ Завантажити",
+    "addTranslation": "Додайте переклад",
+    "loginToAdd": "Увійдіть, щоб додати",
+    "versionsAvailable": "Доступна версія {n} {s} {s}",
+    "shortDate": "{date}",
+    "close": "Закрити",
+    "publicLibrarySubtitle": "Відео {count} {s} перекладено спільнотою {s}",
+    "publicLibraryEmpty": "Ще немає загальнодоступних відео",
+    "doneBadge": "Готово",
+    "activeBadge": "В роботі",
+    "errorBadge": "Помилка",
+    "summaryLabel": "Резюме"
   },
   "LoginPage": {
     "title": "Підключення",
