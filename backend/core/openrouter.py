@@ -13,7 +13,7 @@ from core.config import settings
 
 # ── Modèles ───────────────────────────────────────────────
 # Vérifier la disponibilité des modèles sur https://openrouter.ai/models
-PRIMARY_MODEL  = "deepseek/deepseek-chat"
+PRIMARY_MODEL  = "deepseek/deepseek-chat-v3.1"
 FALLBACK_MODEL = "openai/gpt-4o-mini"
 
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
