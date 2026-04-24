@@ -248,9 +248,7 @@ async def delete_segment(
             jid,
         )
     
-    # Pas de contenu pour DELETE réussi
-    from fastapi.responses import Response
-    return Response(status_code=204)
+    return {"status": "ok", "message": "Segment supprimé", "segment_id": segment_id}
 
 
 @router.post("/{job_id}/segments/{segment_id}/split")

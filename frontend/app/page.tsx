@@ -399,8 +399,8 @@ export default function Home() {
           {/* Compteurs live */}
           <div className="mt-12 mb-6"><CountersBar /></div>
 
-          {/* Section expansible (formulaire) */}
-          <motion.div initial={false} animate={{ height: ctaExpanded ? 'auto' : 0, opacity: ctaExpanded ? 1 : 0 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="overflow-hidden border-t border-gray-800">
+          {/* Section expansible (formulaire — caché quand un job est lancé) */}
+          <motion.div initial={false} animate={{ height: ctaExpanded && !jobId ? 'auto' : 0, opacity: ctaExpanded && !jobId ? 1 : 0 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="overflow-hidden border-t border-gray-800">
             <div className="pt-8">
               <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-5">
                 {/* Source */}
