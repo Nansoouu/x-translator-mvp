@@ -1,24 +1,71 @@
-# .clineignore
-
-# Gros dossiers générés (le plus important)
+# === Dépendances et builds ===
+node_modules/
+**/node_modules/
 .next/
-.next/**
+out/
+build/
+dist/
+frontend/.next/
+frontend/dist/
 
-# Python caches
+# === Git et système ===
+.git/
+.DS_Store
+Thumbs.db
+
+# === Environnement et sécurité ===
+.env
+.env.*
+*.env.local
+.env.local
+cookies.txt
+
+# === Python caches ===
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
 
-# Variables d'environnement
-.env
-.env.local
-.env.*.local
-
-# Lockfiles et dépendances (pas besoin pour Cline)
-package-lock.json
-
-# Fichiers système
-.DS_Store
+# === Logs, temporaires et caches ===
 *.log
+*.logs
+tmp/
+temp/
+.cache/
+coverage/
+*.lcov
 
-# Optionnel : si tu veux être très strict
-# database/          # garde-le si tu veux que Cline voie schema.sql
+# === Memory (LE PLUS IMPORTANT à réduire) ===
+memory/session/
+memory/daily-summary/
+memory/snapshots/
+memory/bugs/
+memory/tickets/closed/
+memory/tickets/in-progress/
+# memory/tickets/open/          # ← garde ouvert si tu veux que Cline voie les todos en cours
+# memory/decisions/             # ← garde si tu veux garder l'architecture
+# memory/features/              # ← garde si tu veux garder les specs
+# memory/knowledge/             # ← garde si tu veux garder la doc technique
+
+# === Frontend spécifique ===
+frontend/messages/*.json      # Optionnel : exclure les traductions si elles sont très longues
+frontend/package-lock.json
+frontend/.env.example
+frontend/page.tsx.modified
+
+# === Fichiers de backup et éditeurs ===
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# === Autres fichiers lourds ou inutiles pour Cline ===
+database/dumps/
+scripts/test-transcription-data.sql
+snapshots/
+orchestrator/llm-analyzer.py   # si tu ne veux pas qu'il le relise tout le temps

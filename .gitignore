@@ -10,10 +10,11 @@ venv/
 # Node
 node_modules/
 .next/
-.env.local
+frontend/.next/
 
 # Tmp
 /tmp/
+*.tsbuildinfo
 *.mp4
 *.mp3
 *.srt
@@ -26,3 +27,10 @@ node_modules/
 # Cookies YouTube (sensibles — ne JAMAIS committer)
 cookies.txt
 backend/cookies.txt
+
+# Fichiers résiduels
+*.modified
+test_*.py
+
+# Scripts setup — chmod +x au checkout
+scripts/*.sh

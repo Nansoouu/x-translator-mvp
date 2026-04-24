@@ -27,6 +27,70 @@ from pathlib import Path
 from typing import Optional
 
 from core.config import settings
+from core.utils import format_duration_human
+
+
+# ─── Helpers Cookies ──────────────────────────────────────────────────────────
+
+def _is_valid_cookies_file(cookies_path: str) -> bool:
+    """
+    Valide le fichier cookies.txt.
+    Retourne True si le fichier existe, n'est pas vide, 
+    a le format Netscape et contient au moins auth_token ou ct0.
+    """
+    import os
+    import time
+    
+    if not os.path.exists(cookies_path):
+        return False
+    
+    size = os.path.getsize(cookies_path)
+    if size == 0:
+        print(f"[cookies] ❌ Fichier vide: {size} octets")
+        return False
+    
+    try:
+        with open(cookies_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        
+        if not lines:
+            print("[cookies] ❌ Fichier sans lignes")
+            return False
+        
+        # Vérifier le format Netscape
+        first_line = lines[0].strip()
+        if not first_line.startswith("# Netscape HTTP Cookie File"):
+            print(f"[cookies] ❌ Format Netscape non détecté: {first_line[:50]}...")
+            return False
+        
+        # Vérifier la présence de cookies essentiels pour X/Twitter
+        has_auth_token = any("auth_token" in line for line in lines)
+        has_ct0 = any("ct0" in line for line in lines)
+        
+        # Vérifier l'expiration des cookies
+        current_time = int(time.time())
+        for line in lines:
+            if line.strip().startswith("#") or "\t" not in line:
+                continue
+            parts = line.strip().split("\t")
+            if len(parts) >= 5:
+                try:
+                    expiry = int(parts[4])
+                    if expiry != 0 and expiry < current_time:
+                        print(f"[cookies] ⚠️  Cookie expiré: {parts[5] if len(parts) > 5 else 'unknown'}")
+                except ValueError:
+                    pass
+        
+        if not has_auth_token and not has_ct0:
+            print("[cookies] ⚠️  Aucun cookie X/Twitter (auth_token/ct0) trouvé")
+            # On accepte quand même car certains sites n'ont pas besoin de ces cookies
+        
+        print(f"[cookies] ✅ Fichier valide: {size} octets, {len(lines)} lignes, auth_token={has_auth_token}, ct0={has_ct0}")
+        return True
+        
+    except Exception as e:
+        print(f"[cookies] ❌ Erreur validation: {e}")
+        return False
 
 
 # ─── Helpers FFmpeg ───────────────────────────────────────────────────────────
@@ -80,6 +144,28 @@ def _init_ffmpeg_caps() -> tuple[bool, bool]:
 
 
 _LIBASS_OK, _DRAWTEXT_OK = _init_ffmpeg_caps()
+
+
+def _get_ffmpeg_encoding_options() -> list[str]:
+    """
+    Options video FFmpeg optimisees pour lecture fluide sur web (HTML5 <video>).
+    Sweet spot 2026 : keyframe toutes les ~2s a 30 fps.
+    """
+    return [
+        "-c:v", "libx264",
+        "-preset", "fast",            # plus rapide que medium, meilleure fluidité
+        "-crf", "20",                 # meilleure qualité (23 → 20), réduit les artefacts
+        "-g", "60",                   # keyframe toutes les ~2 secondes (30 fps)
+        "-keyint_min", "30",          # permet des keyframes plus frequents si besoin
+        "-sc_threshold", "0",         # GOP regulier
+        "-bf", "2",                   # 2 B-frames (recommande YouTube/FFmpeg)
+        "-profile:v", "high",         # high = meilleure qualite (compatible 2026)
+        "-level", "4.2",              # safe pour 1080p+
+        "-movflags", "+faststart",    # indispensable pour streaming web
+        "-muxdelay", "0",
+        "-pix_fmt", "yuv420p",
+        "-threads", "0",
+    ]
 
 
 def _get_video_dims(video: Path) -> tuple[int, int]:
@@ -142,6 +228,46 @@ def _write_srt(blocks: list[dict]) -> str:
     return "\n".join(parts)
 
 
+def _shift_srt_timing(srt_content: str, offset_ms: int) -> str:
+    """
+    Décale tous les timestamps d'un SRT de `offset_ms` millisecondes.
+    Utile pour éviter l'affichage trop tôt des sous-titres (typiquement +200ms).
+    """
+    if not srt_content.strip() or offset_ms == 0:
+        return srt_content
+    
+    offset_s = offset_ms / 1000.0  # millisecondes → secondes
+    blocks = _parse_srt(srt_content)
+    
+    shifted_blocks = []
+    for block in blocks:
+        try:
+            # Parse "00:00:01,000 --> 00:00:03,500"
+            start_str, end_str = block["timecode"].split(" --> ")
+            
+            # Convertir en secondes
+            start_s = _parse_time_to_seconds(start_str)
+            end_s = _parse_time_to_seconds(end_str)
+            
+            # Appliquer le décalage
+            start_s += offset_s
+            end_s += offset_s
+            
+            # Assurer des timestamps valides (positifs)
+            start_s = max(0.0, start_s)
+            end_s = max(0.0, end_s)
+            
+            # Réassigner le timecode
+            block = block.copy()
+            block["timecode"] = f"{_to_srt_time(start_s)} --> {_to_srt_time(end_s)}"
+            shifted_blocks.append(block)
+        except Exception:
+            # En cas d'erreur de parsing, garder le bloc original
+            shifted_blocks.append(block)
+    
+    return _write_srt(shifted_blocks)
+
+
 # ─── Helpers SRT → ASS ────────────────────────────────────────────────────────
 
 def _srt_time_to_ass(ts: str) -> str:
@@ -157,53 +283,135 @@ def _srt_time_to_ass(ts: str) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def _srt_to_ass(srt_content: str, vid_w: int = 1280, vid_h: int = 720) -> str:
+def _adjust_duration_based_on_text(
+    start_seconds: float,
+    end_seconds: float,
+    text_length: int,
+    min_chars_per_second: float = 17.0,
+    min_duration: float = 1.2,
+) -> tuple[float, float]:
     """
-    Convertit SRT → ASS (Advanced SubStation Alpha).
-    Style : fond noir semi-transparent (BorderStyle=3) + texte blanc + wrapping 42 chars/ligne.
+    Ajuste la durée d'affichage en fonction de la longueur du texte.
+    
+    Règle approximative : ~15-20 caractères par seconde (standard sous-titrage).
+    Si la durée actuelle est trop courte pour lire le texte, on l'allonge.
     """
-    MAX_CHARS = 42
-    font_size = max(18, min(26, vid_h // 32))
-    margin_v  = max(20, vid_h // 28)
+    required_duration = max(min_duration, text_length / min_chars_per_second)
+    current_duration = end_seconds - start_seconds
+    
+    if current_duration < required_duration:
+        # Ajoute un peu de marge pour le confort de lecture
+        end_seconds = start_seconds + required_duration + 0.2
+    
+    return start_seconds, end_seconds
 
+
+def _parse_time_to_seconds(ts: str) -> float:
+    """Convertit un timestamp SRT (00:00:01,000) en secondes."""
+    ts = ts.strip().replace(",", ".")
+    h, m, s_ms = ts.split(":")
+    s, ms = s_ms.split(".")
+    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
+
+
+def _srt_to_ass(srt_content: str, vid_w: int = 1280, vid_h: int = 720, user_style: dict | None = None) -> str:
+    """
+    Version améliorée utilisant subtitle_config.py pour une adaptation automatique.
+    """
+    import os
+    import textwrap
+    import re
+    
+    # Importer notre nouvelle configuration
+    from core.subtitle_config import SubtitleConfig, load_user_style_from_json
+    
+    # Convertir user_style si c'est une chaîne JSON
+    style_dict = None
+    if isinstance(user_style, str):
+        style_dict = load_user_style_from_json(user_style)
+    elif isinstance(user_style, dict):
+        style_dict = user_style
+    
+    # Créer la configuration adaptative
+    config = SubtitleConfig(vid_w, vid_h, style_dict)
+    
+    # FORCER fond noir opaque à 100% pour les traductions si non spécifié
+    if not style_dict or "background_opacity" not in style_dict:
+        config.defaults["default_opacity"] = 100
+    
+    font_size = config.calculate_font_size()
+    max_chars_per_line = config.calculate_max_chars_per_line()
+    margin_lr, margin_r, margin_v = config.calculate_margins()
+    
+    print(f"[ass] Video {vid_w}x{vid_h} -> {'VERTICAL' if config.is_vertical else 'HORIZONTAL'} | "
+          f"font={font_size}px | max_chars={max_chars_per_line} | margins=({margin_lr},{margin_v})")
+    
+    # ====================== HEADER ASS ======================
     header = (
         "[Script Info]\n"
         "ScriptType: v4.00+\n"
         f"PlayResX: {vid_w}\n"
         f"PlayResY: {vid_h}\n"
-        "WrapStyle: 0\n"
-        "\n"
+        "WrapStyle: 0\n\n"
         "[V4+ Styles]\n"
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
-        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
-        "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Default,Arial,{font_size},"
-        "&H00FFFFFF,"   # PrimaryColour  : blanc opaque
-        "&H000000FF,"   # SecondaryColour
-        "&H00000000,"   # OutlineColour  : noir
-        "&HA0000000,"   # BackColour     : noir 62 % opaque
-        "0,0,0,0,"      # Bold, Italic, Underline, StrikeOut
-        "100,100,0,0,"  # ScaleX, ScaleY, Spacing, Angle
-        "3,"            # BorderStyle=3 → boîte opaque derrière le texte
-        "1,0,"          # Outline, Shadow
-        "2,"            # Alignment=2   → bas-centre
-        f"20,20,{margin_v},1\n"
+        f"{config.to_ass_style()}\n"
         "\n"
         "[Events]\n"
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
 
-    blocks      = _parse_srt(srt_content)
+    # ====================== SMART WRAP ======================
+    def smart_wrap(text: str, max_chars: int) -> str:
+        text = text.replace("\n", " ").strip()
+        if len(text) <= max_chars * 1.7:
+            return textwrap.fill(text, max_chars)
+        
+        sentences = re.split(r'([.!?])\s+', text)
+        lines = []
+        current = ""
+        for i in range(0, len(sentences), 2):
+            part = (sentences[i] + (sentences[i+1] if i+1 < len(sentences) else "")).strip()
+            if current and len(current + " " + part) > max_chars:
+                lines.append(current)
+                current = part
+            else:
+                current = (current + " " + part).strip()
+        if current:
+            lines.append(current)
+        
+        if len(lines) > 2:
+            lines = lines[:2]
+            lines[1] = lines[1][:max_chars-3] + "…"
+        
+        return "\n".join(lines)
+
+    # ====================== CONVERSION ======================
+    blocks = _parse_srt(srt_content)
     event_lines = []
+
     for b in blocks:
         try:
-            parts    = b["timecode"].split(" --> ")
-            t_start  = _srt_time_to_ass(parts[0])
-            t_end    = _srt_time_to_ass(parts[1])
-            raw      = b["text"].replace("\n", " ").strip()
-            wrapped  = textwrap.fill(raw, MAX_CHARS)
+            parts = b["timecode"].split(" --> ")
+            t_start = _srt_time_to_ass(parts[0])
+            t_end = _srt_time_to_ass(parts[1])
+            
+            raw = b["text"].replace("\n", " ").strip()
+            wrapped = smart_wrap(raw, max_chars_per_line)
             ass_text = wrapped.replace("\n", "\\N")
+            
+            # FORCER FOND NOIR OPAQUE À 100% - Version corrigée
+            # Format ASS: {\pos(x,y)\bord0\shad0\c&HFFFFFF&\3c&H000000&\4c&HFF000000&}texte
+            # \4c&HFF000000& = couleur de fond noir opaque (FF = 100% opaque)
+            # \bord0 = pas de bordure
+            # \shad0 = pas d'ombre
+            # \c&HFFFFFF& = texte blanc
+            # \3c&H000000& = contour noir
+            # Ajouter aussi \alpha&HFF& pour forcer l'opacité du texte
+            ass_text = f"{{\\bord0\\shad0\\c&HFFFFFF&\\3c&H000000&\\4c&HFF000000&\\alpha&HFF&}}{ass_text}"
+
             event_lines.append(
                 f"Dialogue: 0,{t_start},{t_end},Default,,0,0,0,,{ass_text}"
             )
@@ -211,34 +419,6 @@ def _srt_to_ass(srt_content: str, vid_w: int = 1280, vid_h: int = 720) -> str:
             continue
 
     return header + "\n".join(event_lines) + "\n"
-
-
-def _shift_srt_timing(srt_content: str, offset_ms: int = 200) -> str:
-    """Décale tous les timestamps SRT de +offset_ms ms."""
-    def time_to_ms(ts: str) -> int:
-        h, m, s_ms = ts.strip().split(":")
-        s, ms = s_ms.split(",")
-        return int(h) * 3_600_000 + int(m) * 60_000 + int(s) * 1_000 + int(ms)
-
-    def ms_to_time(total: int) -> str:
-        total = max(0, total)
-        h  = total // 3_600_000; total %= 3_600_000
-        m  = total // 60_000;    total %= 60_000
-        s  = total // 1_000;     ms = total % 1_000
-        return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
-
-    def shift_match(match: re.Match) -> str:
-        return (
-            f"{ms_to_time(time_to_ms(match.group(1)) + offset_ms)} --> "
-            f"{ms_to_time(time_to_ms(match.group(2)) + offset_ms)}"
-        )
-
-    return re.sub(
-        r"(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})",
-        shift_match,
-        srt_content,
-    )
-
 
 # ─── Transcription Groq ───────────────────────────────────────────────────────
 
@@ -516,6 +696,7 @@ def _burn_subtitles_pillow(
         return output_path.exists()
 
     import threading
+    import os
 
     ffmpeg      = _ffmpeg_path()
     vid_w, vid_h = _get_video_dims(video_path)
@@ -567,7 +748,24 @@ def _burn_subtitles_pillow(
         print(f"[pillow] 🔤 Police Unicode : {font_file}")
     else:
         print("[pillow] ⚠️  Aucune police TTF trouvée — fallback bitmap 8px (accents limités)")
-    fontsize = max(24, int(vid_h * 0.05))
+    
+    # Détection verticale cohérente avec _srt_to_ass
+    is_vertical = vid_h > vid_w * 1.4
+    
+    # Utiliser les mêmes paramètres que subtitle_config.py
+    # avec des valeurs plus conservatrices pour éviter le débordement
+    if is_vertical:
+        # Pour vertical: basé sur la largeur mais avec un facteur plus petit
+        # car la largeur est limitée (ex: 720px)
+        base_size = int(vid_w * 0.055)  # Réduit de 0.065 à 0.055 (5.5%)
+        fontsize = max(28, min(base_size, 40))  # Bornes: 28-40px
+    else:
+        # Pour horizontal: basé sur la hauteur
+        base_size = int(vid_h * 0.035)  # Réduit de 0.045 à 0.035 (3.5%)
+        fontsize = max(22, min(base_size, 35))  # Bornes: 22-35px
+    
+    orientation = "VERTICAL" if is_vertical else "HORIZONTAL"
+    print(f"[pillow] Video {vid_w}x{vid_h} -> {orientation} | fontsize={fontsize} (base: {base_size}px)")
 
     def _load_font(fs: int):
         if font_file:
@@ -581,8 +779,8 @@ def _burn_subtitles_pillow(
             return ImageFont.load_default()
 
     font         = _load_font(fontsize)
-    pad_h        = 16
-    pad_v        = 10
+    pad_h        = 20
+    pad_v        = 12
     margin_bot   = int(vid_h * 0.05)
     max_w        = int(vid_w * 0.80)
     TRANSPARENT  = bytes(vid_w * vid_h * 4)
@@ -612,7 +810,16 @@ def _burn_subtitles_pillow(
         x            = (vid_w - box_w) // 2
         y            = vid_h - box_h - margin_bot
 
-        draw.rectangle([x, y, x + box_w, y + box_h], fill=(0, 0, 0, 230))
+        # Calcul de l'opacité depuis SUBTITLE_OPACITY (0-100%) → alpha (0-255)
+        opacity_str = os.environ.get("SUBTITLE_OPACITY", "95")
+        try:
+            opacity = int(opacity_str.split("#")[0].strip())  # Enlève les commentaires
+            opacity = max(0, min(100, opacity))
+            alpha = int(opacity * 255 / 100)
+        except ValueError:
+            alpha = 230  # fallback 90% opaque
+        
+        draw.rectangle([x, y, x + box_w, y + box_h], fill=(0, 0, 0, alpha))
 
         cur_y = y + pad_v
         for line, lw, lh in zip(wrapped_lines, line_widths, line_heights):
@@ -631,20 +838,29 @@ def _burn_subtitles_pillow(
         "-i", "pipe:0",
         "-i", str(video_path),
     ]
+    # Scale conditionnel : seulement si vidéo > 1920x1080
+    scale_filter = ""
+    vid_w, vid_h = _get_video_dims(video_path)
+    if vid_w > 1920 or vid_h > 1080:
+        scale_filter = ",scale=1280:-2"
+        print(f"[pillow] 🔍 Vidéo {vid_w}x{vid_h} > 1920x1080 → scale activé")
+    else:
+        print(f"[pillow] 🔍 Vidéo {vid_w}x{vid_h} ≤ 1920x1080 → pas de scale")
+
     if wm_path and wm_path.exists():
         cmd += ["-i", str(wm_path)]
         filter_complex = (
-            "[1:v][2:v]overlay=0:0:format=auto,format=yuv420p[wm];"
-            "[wm][0:v]overlay=0:0:format=auto[v]"
+            f"[1:v][2:v]overlay=0:0:format=auto,format=yuv420p[wm];"
+            f"[wm][0:v]overlay=0:0:format=auto{scale_filter}[v]"
         )
     else:
-        filter_complex = "[1:v][0:v]overlay=0:0:format=auto[v]"
+        filter_complex = f"[1:v][0:v]overlay=0:0:format=auto{scale_filter}[v]"
 
     cmd += [
         "-filter_complex", filter_complex,
         "-map", "[v]", "-map", "1:a?",
-        "-c:v", "libx264", "-crf", "23", "-preset", "ultrafast", "-threads", "0",
-        "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        * _get_ffmpeg_encoding_options(),
+        "-c:a", "copy",  # Copier l'audio original au lieu de re-encoder
         str(output_path),
     ]
 
@@ -665,9 +881,14 @@ def _burn_subtitles_pillow(
 
         def _write_stdin():
             try:
-                for fn in range(total_frames):
-                    txt = frame_to_text.get(fn)
-                    proc.stdin.write(text_bytes[txt] if txt else TRANSPARENT)  # type: ignore
+                # Envoyer les frames par groupes de 1000 pour éviter le buffer overflow
+                for i in range(0, total_frames, 1000):
+                    chunk_frames = range(i, min(i + 1000, total_frames))
+                    for fn in chunk_frames:
+                        txt = frame_to_text.get(fn)
+                        proc.stdin.write(text_bytes[txt] if txt else TRANSPARENT)  # type: ignore
+                    # Vidage régulier du buffer après chaque groupe
+                    proc.stdin.flush()
             except (BrokenPipeError, OSError):
                 pass
             finally:
@@ -681,10 +902,15 @@ def _burn_subtitles_pillow(
         t_drain.start()
         t_writer.start()
 
-        # Timeout dynamique : au moins 5 min, ou 2x la durée de la vidéo
-        multiplier = float(os.environ.get("PILLOW_TIMEOUT_MULTIPLIER", "2.0"))
-        writer_timeout = max(300, int(duration * multiplier))
-        print(f"[pillow] ⏳ Writer timeout défini à {writer_timeout}s (vidéo = {duration:.1f}s)")
+        # Timeout dynamique : au moins 5 min, ou 4x la durée de la vidéo + marge
+        # Pour les vidéos longues (>2min), le burn peut prendre 3-4x la durée
+        multiplier = float(os.environ.get("PILLOW_TIMEOUT_MULTIPLIER", "4.0"))
+        base_timeout = int(duration * multiplier)
+        # Ajouter une marge fixe de 120s pour les opérations I/O et buffering
+        writer_timeout = max(300, base_timeout + 120)
+        hum_writer = format_duration_human(writer_timeout)
+        hum_duration = format_duration_human(duration)
+        print(f"[pillow] ⏳ Writer timeout défini à {hum_writer} (vidéo = {hum_duration}, multiplier={multiplier}x)")
 
         t_writer.join(timeout=writer_timeout)
         if t_writer.is_alive():
@@ -718,137 +944,26 @@ def _burn_subtitles(
 ) -> bool:
     """
     Incrustation sous-titres + watermark.
-
-    Stratégie auto-détectée (même logique que conflict-map) :
-      Mode A — libass disponible :
-        → copie SRT/ASS dans video.parent, utilise ass=filename=X.ass (relatif)
-          + cwd=video.parent → évite tous les problèmes de parsing de chemin
-      Mode B — drawtext disponible mais pas libass :
-        → watermark seul (SRT abandonné, sous-titres trop complexes sans libass)
-      Mode C — ni l'un ni l'autre → Pillow rawvideo pipe (toujours fonctionnel)
+    
+    FORCÉ EN MODE PILLOW POUR GARANTIR L'OPACITÉ À 100%
+    (libass/FFmpeg ignore les codes d'opacité ASS)
     """
     import shutil
-    ffmpeg = _ffmpeg_path()
-
-    # Copier le SRT dans le même dossier que la vidéo (OBLIGATOIRE pour libass)
+    import os
+    
+    # Copier le SRT dans le même dossier que la vidéo
     srt_local = video_path.parent / srt_path.name
     if srt_local != srt_path:
         shutil.copy2(srt_path, srt_local)
 
-    libass_ok   = _LIBASS_OK
-    drawtext_ok = _DRAWTEXT_OK
-
-    # ── Mode C direct si aucun filtre texte dispo ──────────────────────────
-    if not libass_ok and not drawtext_ok:
-        print("[burn] ℹ️  libass absent, drawtext absent → Pillow rawvideo pipe")
-        if srt_local != srt_path:
-            srt_local.unlink(missing_ok=True)
-        return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
-
-    mode_tag = "?"
-    cmd: list[str]
-
-    if libass_ok:
-        # ── Mode A : ASS natif — chemin relatif + cwd ─────────────────────
-        vid_w, vid_h = _get_video_dims(video_path)
-        ass_content  = _srt_to_ass(srt_path.read_text(encoding="utf-8"), vid_w, vid_h)
-        ass_local    = video_path.parent / (srt_path.stem + ".ass")
-        ass_local.write_text(ass_content, encoding="utf-8")
-
-        if srt_local != srt_path:
-            srt_local.unlink(missing_ok=True)   # ASS prend le relais, SRT nettoyé
-
-        print(f"[burn] ✍️  ASS ({len(ass_content)} chars, {vid_w}×{vid_h}) → {ass_local.name}")
-
-        if wm_path and wm_path.exists():
-            filter_complex = (
-                f"[0:v]ass=filename={ass_local.name}[s];"
-                f"[s][1:v]overlay=0:0:format=auto,format=yuv420p[v]"
-            )
-            cmd = [
-                ffmpeg, "-y", "-nostdin",
-                "-i", str(video_path), "-i", str(wm_path),
-                "-filter_complex", filter_complex,
-                "-map", "[v]", "-map", "0:a?",
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                str(output_path),
-            ]
-        else:
-            cmd = [
-                ffmpeg, "-y", "-nostdin", "-i", str(video_path),
-                "-vf", f"ass=filename={ass_local.name},format=yuv420p",
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                str(output_path),
-            ]
-        mode_tag = "ass+WM" if (wm_path and wm_path.exists()) else "ass"
-
-    else:
-        # ── Mode B : drawtext dispo mais pas libass → watermark seul ────────
-        print("[burn] ℹ️  libass absent, drawtext OK → watermark seul (sous-titres abandonnés)")
-        if srt_local != srt_path:
-            srt_local.unlink(missing_ok=True)
-
-        if wm_path and wm_path.exists():
-            cmd = [
-                ffmpeg, "-y", "-nostdin",
-                "-i", str(video_path), "-i", str(wm_path),
-                "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
-                "-map", "[v]", "-map", "0:a?",
-                "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                "-c:a", "copy", "-movflags", "+faststart",
-                str(output_path),
-            ]
-            mode_tag = "wm-only"
-        else:
-            shutil.copy2(video_path, output_path)
-            return output_path.exists() and output_path.stat().st_size > 0
-
-    # ── Exécution FFmpeg ───────────────────────────────────────────────────
-    _vid_dur = _get_video_duration(video_path)
-    _timeout = max(120, int(_vid_dur * 8))
-    print(f"[burn] ⏱  Timeout dynamique : {_timeout}s")
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True, text=True,
-            timeout=_timeout,
-            cwd=str(video_path.parent),   # ← clé : résolution des chemins relatifs
-        )
-
-        # Nettoyage fichiers locaux
-        if libass_ok:
-            ass_local.unlink(missing_ok=True)
-
-        if result.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
-            print(f"[burn] ✅ {output_path.name} [{mode_tag}] ({output_path.stat().st_size // 1024} KB)")
-            return True
-
-        print(f"[burn] ❌ FFmpeg code={result.returncode}")
-        if result.stderr:
-            print(f"[burn] stderr: {result.stderr[-600:]}")
-
-        # Fallback Pillow si libass a échoué (RTL, codec exotique, etc.)
-        if libass_ok:
-            print("[burn] ⚠️  Mode A échoué → fallback Pillow rawvideo pipe")
-            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
-        return False
-
-    except subprocess.TimeoutExpired:
-        print(f"[burn] ⏱️  Timeout (>{_timeout}s) → fallback Pillow")
-        if libass_ok:
-            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
-        return False
-    except FileNotFoundError:
-        print("[burn] ❌ ffmpeg introuvable")
-        return False
-    except Exception as e:
-        print(f"[burn] ❌ Exception : {e}")
-        if libass_ok:
-            return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
-        return False
+    print("[burn] ⚡ FORCÉ MODE PILLOW pour garantir fond noir opaque à 100%")
+    if srt_local != srt_path:
+        srt_local.unlink(missing_ok=True)
+    
+    # FORCER l'opacité à 100% via variable d'environnement
+    os.environ["SUBTITLE_OPACITY"] = "100"
+    
+    return _burn_subtitles_pillow(video_path, srt_path, output_path, wm_path)
 
 
 # ─── Pipeline principal ───────────────────────────────────────────────────────
@@ -865,8 +980,22 @@ async def process_video(
     les conflits de boucle d'événements dans les workers Celery.
     """
     from core.db import direct_connect
-    from core.openrouter import translate_srt, generate_summary
     from core.watermark import _generate_watermark_png
+
+    # OpenRouter uniquement (plus de LLM local)
+    OPENROUTER_AVAILABLE = False
+    openrouter_generate_summary = None
+    openrouter_translate_srt = None
+    openrouter_translate_srt_chunked = None
+    
+    try:
+        from core.openrouter import generate_summary as openrouter_generate_summary
+        from core.openrouter import translate_srt as openrouter_translate_srt
+        from core.openrouter import translate_srt_chunked as openrouter_translate_srt_chunked
+        OPENROUTER_AVAILABLE = True
+    except ImportError:
+        pass  # OpenRouter non disponible, on continue sans LLM
+
     from core.supabase_storage import upload_video
     from core.whisper_hallucination_filter import (
         filter_srt_segments,
@@ -915,7 +1044,7 @@ async def process_video(
         import yt_dlp
 
         # ── Options cookies anti-bot YouTube ──────────────────────────────────
-        # Priorité : 1) fichier cookies.txt  2) navigateur (dev local)  3) rien
+        # Priorité : 1) navigateur (frais)  2) fichier cookies.txt  3) rien
         ydl_opts: dict = {
             # Format ultra-permissif : couvre Shorts, vidéos normales, MP4/WebM
             "format":               "bestvideo+bestaudio/best",
@@ -928,32 +1057,89 @@ async def process_video(
             # Télécharge le script de résolution du n-challenge YouTube depuis GitHub
             # (requis depuis yt-dlp 2026.03+ avec Deno comme runtime JS par défaut)
             "remote_components":    "ejs:github",
+            # User-Agent moderne pour éviter les blocages
+            "http_headers":         {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"},
         }
 
-        # 1. Fichier cookies.txt (prod Railway / env variable YTDLP_COOKIES_FILE)
-        cookies_file = os.environ.get(
-            "YTDLP_COOKIES_FILE",
-            str(Path(__file__).parent.parent / "cookies.txt"),
-        )
-        if os.path.isfile(cookies_file):
-            ydl_opts["cookiefile"] = cookies_file
-            print(f"[pipeline] 🍪 Cookies depuis fichier : {cookies_file}")
-        else:
-            # 2. Cookies depuis navigateur (dev local uniquement)
-            for browser in ("chrome", "firefox", "safari", "edge"):
-                try:
-                    yt_dlp.cookies.load_cookies_from_browser(browser)
-                    ydl_opts["cookiesfrombrowser"] = (browser, None, None, None)
-                    print(f"[pipeline] 🍪 Cookies depuis navigateur : {browser}")
-                    break
-                except Exception:
-                    continue
+        # 1. Cookies depuis navigateur (frais, dev local uniquement)
+        browser_used = False
+        for browser in ("chrome", "firefox", "safari", "edge"):
+            try:
+                yt_dlp.cookies.load_cookies_from_browser(browser)
+                ydl_opts["cookiesfrombrowser"] = (browser, None, None, None)
+                print(f"[pipeline] 🍪 Cookies depuis navigateur : {browser}")
+                browser_used = True
+                break
+            except Exception:
+                continue
+        
+        # 2. Fallback : fichier cookies.txt (prod Railway / env variable YTDLP_COOKIES_FILE)
+        if not browser_used:
+            cookies_file = os.environ.get(
+                "YTDLP_COOKIES_FILE",
+                str(Path(__file__).parent.parent / "cookies.txt"),
+            )
+            if os.path.isfile(cookies_file) and _is_valid_cookies_file(cookies_file):
+                ydl_opts["cookiefile"] = cookies_file
+                print(f"[pipeline] 🍪 Cookies depuis fichier valide : {cookies_file}")
+            else:
+                if os.path.isfile(cookies_file):
+                    print(f"[pipeline] ⚠️  Fichier cookies.txt invalide ou vide : {cookies_file}")
+                else:
+                    print("[pipeline] ⚠️  Aucun cookie disponible — téléchargement public uniquement")
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(source_url, download=True)
-            thumbnail_url = info.get("thumbnail") if info else None
-        if thumbnail_url:
-            print(f"[pipeline] 🖼  Thumbnail extrait : {thumbnail_url[:80]}…")
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(source_url, download=True)
+                thumbnail_url = info.get("thumbnail") if info else None
+            if thumbnail_url:
+                print(f"[pipeline] 🖼  Thumbnail extrait : {thumbnail_url[:80]}…")
+        except yt_dlp.utils.DownloadError as e:
+            # Détecter les erreurs spécifiques à X/Twitter
+            error_msg = str(e).lower()
+            source_lower = source_url.lower()
+            
+            if "twitter" in source_lower or "x.com" in source_lower:
+                if "internal server error" in error_msg:
+                    raise RuntimeError(
+                        "Échec de téléchargement X (Twitter) : erreur serveur interne. "
+                        "L'API GraphQL de X peut être temporairement indisponible. "
+                        "Vos cookies peuvent être expirés — veuillez rafraîchir le fichier cookies.txt "
+                        "avec une session X authentifiée et réessayer."
+                    ) from e
+                
+                if "429" in error_msg or "too many requests" in error_msg:
+                    raise RuntimeError(
+                        "Trop de requêtes vers X (Twitter) — limitation de taux. "
+                        "Veuillez attendre quelques minutes avant de réessayer."
+                    ) from e
+                
+                if "no video could be found" in error_msg:
+                    # Vérifier si le tweet existe via l'API GraphQL
+                    # Si le tweet n'existe pas ou n'a pas de vidéo, on ne retry pas
+                    # On marque le job comme échoué avec un message clair
+                    raise RuntimeError(
+                        "Le tweet ne contient pas de vidéo téléchargeable. "
+                        "Assurez-vous que le tweet existe et contient bien une vidéo. "
+                        "ID du tweet: " + str(e).split(":")[1].split(":")[0].strip()
+                    ) from e
+                
+                if "rate limit" in error_msg or "limit" in error_msg:
+                    raise RuntimeError(
+                        "Limite de téléchargement X (Twitter) atteinte. "
+                        "Les cookies X sont peut-être expirés ou les crédits API insuffisants. "
+                        "Veuillez rafraîchir les cookies et réessayer plus tard."
+                    ) from e
+                
+                # Erreur générique pour Twitter
+                raise RuntimeError(
+                    f"Échec de téléchargement X/Twitter : {error_msg[:150]}"
+                ) from e
+            
+            # Autres sites
+            raise RuntimeError(f"Erreur de téléchargement yt-dlp : {error_msg[:200]}") from e
+        except Exception as e:
+            raise RuntimeError(f"Erreur inattendue lors du téléchargement : {e}") from e
 
         candidates = list(workdir.glob("source.*"))
         if not candidates:
@@ -1031,10 +1217,15 @@ async def process_video(
         summary = None
         if transcript_tx and not _no_audio:
             try:
-                summary = await generate_summary(transcript_tx, target_lang=target_lang)
-                print(f"[pipeline] 📝 Résumé généré ({len(summary or '')} chars)")
+                # OpenRouter uniquement
+                if OPENROUTER_AVAILABLE and openrouter_generate_summary:
+                    summary = await openrouter_generate_summary(transcript_tx, target_lang)
+                    if summary:
+                        print(f"[pipeline] 📝 Résumé généré via OpenRouter ({len(summary)} caractères)")
+                else:
+                    print("[pipeline] ⚠️  OpenRouter non disponible — skip résumé")
             except Exception as e:
-                print(f"[pipeline] ⚠️  Résumé ignoré: {e}")
+                print(f"[pipeline] ⚠️  Résumé ignoré : {e}")
 
         await _set_status("translating", summary=summary, source_lang=source_lang)
 
@@ -1042,21 +1233,108 @@ async def process_video(
         if not _no_audio and source_srt.exists() and source_srt.stat().st_size > 0:
             srt_content = source_srt.read_text(encoding="utf-8")
             if source_lang != target_lang:
-                translated_srt_content = await translate_srt(
-                    srt_content, source_lang, target_lang,
-                    context={"src_lang": source_lang},
-                )
+                # OpenRouter uniquement
+                translated_srt_content = None
+                
+                # Décision : utiliser chunking pour vidéos longues ou SRT volumineux
+                use_chunking = False
+                srt_char_count = len(srt_content)
+                srt_block_count = len(_parse_srt(srt_content))
+                
+                # Vidéo longue (>5 min) ou SRT > 6000 caractères → chunking
+                if video_type == "long" or srt_char_count > 6000:
+                    use_chunking = True
+                    print(f"[pipeline] 📦 Chunking décidé (video_type={video_type}, {srt_char_count} chars, {srt_block_count} blocs)")
+                
+                if OPENROUTER_AVAILABLE:
+                    try:
+                        if use_chunking and openrouter_translate_srt_chunked:
+                            translated_srt_content = await openrouter_translate_srt_chunked(
+                                srt_content, source_lang, target_lang,
+                                context={"src_lang": source_lang},
+                                max_chars_per_chunk=6000,
+                                max_blocks_per_chunk=50,
+                            )
+                            print(f"[pipeline] ✅ Traduction SRT chunked via OpenRouter ({len(translated_srt_content)} caractères)")
+                        elif openrouter_translate_srt:
+                            translated_srt_content = await openrouter_translate_srt(
+                                srt_content, source_lang, target_lang,
+                                context={"src_lang": source_lang},
+                            )
+                            print(f"[pipeline] ✅ Traduction SRT via OpenRouter ({len(translated_srt_content)} caractères)")
+                    except Exception as e:
+                        print(f"[pipeline] ⚠️  Traduction OpenRouter échouée : {e}")
+                        translated_srt_content = None
+                
                 if not translated_srt_content:
+                    print("[pipeline] ⚠️  Traduction non disponible — garde SRT original")
                     translated_srt_content = srt_content
             else:
                 translated_srt_content = srt_content
 
-            offset_ms = int(os.environ.get("SRT_TIMING_OFFSET_MS", "200"))
-            if offset_ms:
-                translated_srt_content = _shift_srt_timing(translated_srt_content, offset_ms)
-                print(f"[pipeline] ⏰ Timing SRT décalé de +{offset_ms}ms")
+            # Supprimer le décalage de 200ms - garder les timestamps originaux
+            # offset_ms = int(os.environ.get("SRT_TIMING_OFFSET_MS", "200"))
+            # if offset_ms:
+            #     translated_srt_content = _shift_srt_timing(translated_srt_content, offset_ms)
+            #     print(f"[pipeline] ⏰ Timing SRT décalé de +{offset_ms}ms")
 
             translated_srt.write_text(translated_srt_content, encoding="utf-8")
+
+            # Sauvegarder les segments traduits dans la base de données
+            try:
+                from core.db import direct_connect
+                import json
+                
+                # Parser le SRT traduit
+                blocks_translated = _parse_srt(translated_srt_content)
+                # Parser le SRT original pour le texte original
+                blocks_original = _parse_srt(srt_content)
+                
+                # Synchroniser les blocs (même nombre, même timing)
+                if len(blocks_translated) == len(blocks_original):
+                    async with direct_connect() as conn:
+                        for i, (orig, trans) in enumerate(zip(blocks_original, blocks_translated)):
+                            # Extraire les timestamps et les convertir en secondes
+                            timecode = orig["timecode"]
+                            start_str, end_str = timecode.split(" --> ")
+                            
+                            def parse_time_to_sec(timestr: str) -> float:
+                                h, m, s_ms = timestr.strip().split(":")
+                                s, ms = s_ms.split(",")
+                                return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
+                            
+                            start_sec = parse_time_to_sec(start_str)
+                            end_sec = parse_time_to_sec(end_str)
+                            
+                            # Convertir le style en string JSON pour asyncpg
+                            style_json = json.dumps({
+                                "color": "#ffffff", 
+                                "fontSize": 24, 
+                                "fontFamily": "Arial, sans-serif"
+                            })
+                            
+                            # Insérer dans la base de données
+                            await conn.execute(
+                                """
+                                INSERT INTO transcription_segments 
+                                (job_id, start_time, end_time, original_text, translated_text, style)
+                                VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+                                ON CONFLICT DO NOTHING
+                                """,
+                                jid,
+                                start_sec,
+                                end_sec,
+                                orig["text"].strip(),
+                                trans["text"].strip(),
+                                style_json
+                            )
+                    
+                    print(f"[pipeline] 💾 {len(blocks_translated)} segments sauvegardés dans la base de données")
+                else:
+                    print(f"[pipeline] ⚠️  Nombre de blocs différent (original: {len(blocks_original)}, traduit: {len(blocks_translated)}) - skip sauvegarde")
+            except Exception as e:
+                print(f"[pipeline] ⚠️  Échec sauvegarde segments: {e}")
+                # Ne pas bloquer le pipeline si la sauvegarde échoue
 
         # ── 6. Watermark PNG ──────────────────────────────────────────────────
         wm_path: Optional[Path] = None
@@ -1085,10 +1363,11 @@ async def process_video(
                     _ffmpeg_path(), "-y", "-nostdin",
                     "-i", str(source_mp4), "-i", str(wm_path),
                     "-filter_complex",
-                    "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p[out]",
+                    "[0:v][1:v]overlay=0:0:format=auto,format=yuv420p,scale=1280:-2[out]",  # ← scale intégré ici
                     "-map", "[out]", "-map", "0:a:0?",
-                    "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-                    "-c:a", "copy", "-movflags", "+faststart",
+                    * _get_ffmpeg_encoding_options(),
+                    "-c:a", "aac",
+                    "-b:a", "128k",
                     str(burned_mp4),
                 ]
                 proc = subprocess.run(
@@ -1125,7 +1404,7 @@ async def process_video(
 
         if not upload_result:
             storage_key = f"local/{job_id}/{upload_filename}"
-            storage_url = f"file://{final_mp4}"
+            storage_url = str(final_mp4)  # chemin absolu sans scheme file://
         else:
             storage_key = upload_result["storage_key"]
             storage_url = upload_result["storage_url"]

@@ -304,6 +304,61 @@ async def translate_srt(
     return content
 
 
+async def translate_srt_chunked(
+    srt_content: str,
+    src_lang: str,
+    tgt_lang: str,
+    model: str = PRIMARY_MODEL,
+    context: dict | None = None,
+    max_chars_per_chunk: int = 6000,
+    max_blocks_per_chunk: int = 50,
+) -> str | None:
+    """
+    Traduit un fichier SRT en le découpant en plusieurs chunks.
+    Pour les vidéos longues (>5 min) qui dépassent les limites de tokens.
+    """
+    api_key = getattr(settings, "OPENROUTER_API_KEY", None)
+    if not api_key:
+        return None
+
+    # Même langue → retour immédiat
+    if src_lang == tgt_lang:
+        return srt_content
+
+    # Importer le chunking
+    from core.srt_chunking import chunk_srt_content, merge_srt_chunks
+
+    # Découper le SRT en chunks
+    srt_chunks, _ = chunk_srt_content(
+        srt_content,
+        max_chars=max_chars_per_chunk,
+        max_blocks=max_blocks_per_chunk,
+    )
+
+    print(f"[openrouter/srt] 📦 Chunking: {len(srt_chunks)} chunk(s) pour {len(srt_chunks)} parties")
+
+    # Traduire chaque chunk
+    translated_chunks = []
+    for i, chunk in enumerate(srt_chunks, 1):
+        print(f"[openrouter/srt]   Chunk {i}/{len(srt_chunks)} ({len(chunk)} caractères)")
+        translated = await translate_srt(
+            chunk, src_lang, tgt_lang, model, context
+        )
+        if translated:
+            translated_chunks.append(translated)
+        else:
+            print(f"[openrouter/srt] ⚠️  Chunk {i} échoué, on garde l'original")
+            translated_chunks.append(chunk)
+
+    # Fusionner les chunks traduits
+    if len(translated_chunks) == 0:
+        return None
+
+    final_srt = merge_srt_chunks(translated_chunks)
+    print(f"[openrouter/srt] ✅ {src_lang}→{tgt_lang} (chunked, {len(translated_chunks)} chunks, {len(final_srt)} caractères)")
+    return final_srt
+
+
 async def generate_summary(
     transcript: str,
     target_lang: str = "fr",

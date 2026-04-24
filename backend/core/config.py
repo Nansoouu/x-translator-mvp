@@ -67,7 +67,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-        extra = "ignore"
+        extra = "allow"  # Permet de charger toutes les variables .env, y compris SUBTITLE_*
 
 
 settings = Settings()

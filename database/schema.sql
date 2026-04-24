@@ -2,22 +2,25 @@
 -- Compatible Supabase (auth.users gérés automatiquement)
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id        UUID,
-    source_url     TEXT NOT NULL,
-    target_lang    TEXT NOT NULL,
-    status         TEXT NOT NULL DEFAULT 'queued',
-    error_msg      TEXT,
-    storage_key    TEXT,
-    storage_url    TEXT,
-    source_lang    TEXT,
-    summary        TEXT,
-    duration_s     FLOAT,
-    video_type     TEXT DEFAULT 'short',
-    thumbnail_url  TEXT,
-    download_count INTEGER DEFAULT 0,
-    created_at     TIMESTAMPTZ DEFAULT now(),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id           UUID,
+    source_url        TEXT NOT NULL,
+    target_lang       TEXT NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'queued',
+    error_msg         TEXT,
+    storage_key       TEXT,
+    storage_url       TEXT,
+    source_lang       TEXT,
+    summary           TEXT,
+    duration_s        FLOAT,
+    video_type        TEXT DEFAULT 'short',
+    thumbnail_url     TEXT,
+    download_count    INTEGER DEFAULT 0,
+    download_only     BOOLEAN DEFAULT FALSE,
+    mode              TEXT DEFAULT 'translate' CHECK (mode IN ('download', 'translate')),
+    original_filename TEXT,
+    created_at        TIMESTAMPTZ DEFAULT now(),
+    updated_at        TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -91,3 +94,20 @@ ALTER TABLE studio_projects ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT
 CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
+
+-- ─── Transcription Segments ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS transcription_segments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    start_time FLOAT NOT NULL,
+    end_time FLOAT NOT NULL,
+    original_text TEXT NOT NULL,
+    translated_text TEXT NOT NULL,
+    style JSONB DEFAULT '{"fontFamily": "Arial, sans-serif", "fontSize": 24, "color": "#ffffff"}',
+    is_edited BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transcription_segments_job_id ON transcription_segments(job_id);

@@ -7,7 +7,9 @@ import Link from 'next/link';
 export default function LoginPage() {
   const [mode, setMode]         = useState<'login' | 'register'>('login');
   const [email, setEmail]       = useState('');
+  const [emailConfirm, setEmailConfirm] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [success, setSuccess]   = useState<string | null>(null);
 
@@ -23,10 +25,18 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         await login(email, password);
-        // Hard redirect : force le rechargement complet pour que la Navbar
-        // relise le localStorage et affiche l'état connecté
         window.location.href = '/';
       } else {
+        // Validation register
+        if (email !== emailConfirm) {
+          throw new Error('Les emails ne correspondent pas.');
+        }
+        if (password !== passwordConfirm) {
+          throw new Error('Les mots de passe ne correspondent pas.');
+        }
+        if (!emailConfirm || !passwordConfirm) {
+          throw new Error('Veuillez confirmer votre email et mot de passe.');
+        }
         const res = await register(email, password);
         if (res?.access_token) {
           window.location.href = '/';
@@ -92,6 +102,24 @@ export default function LoginPage() {
               />
             </div>
 
+            {mode === 'register' && (
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
+                  Confirmer l'email
+                </label>
+                <input
+                  type="email"
+                  value={emailConfirm}
+                  onChange={e => setEmailConfirm(e.target.value)}
+                  required
+                  placeholder="vous@exemple.com"
+                  autoComplete="off"
+                  onPaste={(e) => e.preventDefault()}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
+                />
+              </div>
+            )}
+
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
                 Mot de passe
@@ -103,6 +131,7 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 minLength={mode === 'register' ? 8 : undefined}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
               {mode === 'register' && (
@@ -110,7 +139,30 @@ export default function LoginPage() {
               )}
             </div>
 
-            {error && (
+            {mode === 'register' && (
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
+                  Confirmer le mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={e => setPasswordConfirm(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  onPaste={(e) => e.preventDefault()}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
+                />
+              </div>
+            )}
+
+            {error && mode === 'login' && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
+                ⚠️ {error}
+              </div>
+            )}
+            {error && mode === 'register' && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
                 ⚠️ {error}
               </div>

@@ -24,6 +24,16 @@ const LANG_NAMES: Record<string, string> = {
 };
 const ALL_LANGS = Object.keys(LANG_FLAGS);
 
+function getPlatformInfo(sourceUrl?: string) {
+  if (!sourceUrl) return { name: 'Vidéo', emoji: '🎬' };
+  const u = sourceUrl.toLowerCase();
+  if (u.includes('youtube') || u.includes('youtu.be')) return { name: 'YouTube', emoji: '📺' };
+  if (u.includes('x.com') || u.includes('twitter')) return { name: 'X', emoji: '𝕏' };
+  if (u.includes('tiktok')) return { name: 'TikTok', emoji: '🎵' };
+  if (u.includes('instagram')) return { name: 'Instagram', emoji: '📸' };
+  return { name: 'Vidéo', emoji: '🎬' };
+}
+
 const ACTIVE_STATUSES = new Set([
   'queued', 'downloading', 'transcribing', 'translating', 'burning', 'uploading',
 ]);
@@ -75,6 +85,10 @@ type GroupedVideo = {
 
 // ── Dédupliquer les variants par langue (garder le meilleur statut) ──────────
 const VARIANT_PRIORITY = ['done', 'uploading', 'burning', 'translating', 'transcribing', 'downloading', 'queued', 'error'];
+
+// ── Fonction helper pour déterminer si un variant est jouable ─────────────────
+const isPlayable = (variant: LangVariant) => 
+  variant.status === 'done' || !!variant.storage_url;
 
 function deduplicateVariants(variants: LangVariant[]): LangVariant[] {
   const byLang = new Map<string, LangVariant>();
@@ -195,14 +209,18 @@ function EnhancedVideoModal({
   initialLang?: string;
   onClose: () => void;
 }) {
-  const firstDone = group.variants.find((v) => v.status === 'done');
+  const firstPlayable = group.variants.find(isPlayable);
   const [currentLang, setCurrentLang] = useState<string>(
-    initialLang ?? firstDone?.lang ?? group.variants[0]?.lang ?? ''
+    initialLang ?? firstPlayable?.lang ?? group.variants[0]?.lang ?? ''
   );
 
-  const currentVariant = group.variants.find((v) => v.lang === currentLang && v.status === 'done')
-    ?? group.variants.find((v) => v.status === 'done');
-  const currentUrl = currentVariant?.storage_url ?? null;
+  const currentVariant = group.variants.find((v) => v.lang === currentLang && isPlayable(v))
+    ?? firstPlayable;
+  const currentUrl = currentVariant?.storage_url 
+    ? currentVariant.storage_url.startsWith('http')
+      ? currentVariant.storage_url
+      : `/api${currentVariant.storage_url}`
+    : null;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -210,7 +228,7 @@ function EnhancedVideoModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const doneVariants = group.variants.filter((v) => v.status === 'done');
+  const doneVariants = group.variants.filter(isPlayable);
 
   return (
     <div
@@ -224,10 +242,13 @@ function EnhancedVideoModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
           <div className="min-w-0 flex-1 pr-4">
-            <p className="text-sm text-gray-400 truncate">{group.source_url}</p>
-            {group.summary && (
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{group.summary}</p>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{getPlatformInfo(group.source_url).emoji}</span>
+              <p className="text-sm font-medium text-gray-300">
+                {getPlatformInfo(group.source_url).name}
+              </p>
+            </div>
+            {group.summary && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{group.summary}</p>}
           </div>
           <button
             onClick={onClose}
@@ -245,6 +266,8 @@ function EnhancedVideoModal({
               src={currentUrl}
               controls
               autoPlay
+              playsInline
+              preload="auto"
               className="w-full h-full"
             />
           ) : (
@@ -262,7 +285,7 @@ function EnhancedVideoModal({
             </p>
             <div className="flex flex-wrap gap-2">
               {group.variants.map((v) => {
-                const isDone   = v.status === 'done';
+                const isDone   = isPlayable(v);
                 const isActive = ACTIVE_STATUSES.has(v.status);
                 const isSelected = v.lang === currentLang;
                 return (
@@ -362,22 +385,24 @@ function AddLangModal({
             const exists  = existingLangs.has(lang);
             const flag    = LANG_FLAGS[lang] ?? '🌐';
             const name    = LANG_NAMES[lang] ?? lang;
+            const disabled = !isAuthenticated || exists;
             return (
               <button
                 key={lang}
-                onClick={() => !exists && onAdd(g.source_url, lang)}
-                disabled={exists}
+                onClick={() => !disabled && onAdd(g.source_url, lang)}
+                disabled={disabled}
                 title={name}
                 className={`
                   flex flex-col items-center gap-0.5 p-2 rounded-xl border text-center transition-all
-                  ${exists
-                    ? 'border-emerald-700/40 bg-emerald-950/30 opacity-60 cursor-not-allowed'
+                  ${disabled
+                    ? 'border-gray-700/40 bg-gray-800/30 opacity-50 cursor-not-allowed'
                     : 'border-gray-700 bg-gray-800 hover:border-blue-500 hover:bg-blue-500/10 cursor-pointer'}
                 `}
               >
                 <span className="text-xl leading-none">{flag}</span>
                 <span className="text-[9px] text-gray-400 leading-none">{lang.toUpperCase()}</span>
                 {exists && <span className="text-[8px] text-emerald-500 leading-none">✓</span>}
+                {!isAuthenticated && !exists && <span className="text-[8px] text-amber-500 leading-none">🔒</span>}
               </button>
             );
           })}
@@ -411,17 +436,19 @@ function VideoCard({
   onPlay,
   onAddLang,
   onOpenInStudio,
+  isAuthenticated = false,
 }: {
   g: GroupedVideo;
   showDownload?: boolean;
   onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
   onOpenInStudio?: (g: GroupedVideo) => void;
+  isAuthenticated?: boolean;
 }) {
-  const hasAnyDone  = g.variants.some((v) => v.status === 'done');
+  const hasAnyDone  = g.variants.some(isPlayable);
   const hasActive   = g.variants.some((v) => ACTIVE_STATUSES.has(v.status));
   const hasError    = g.variants.every((v) => v.status === 'error');
-  const doneVariants   = g.variants.filter((v) => v.status === 'done');
+  const doneVariants   = g.variants.filter(isPlayable);
   const activeVariants = g.variants.filter((v) => ACTIVE_STATUSES.has(v.status));
 
   return (
@@ -488,12 +515,20 @@ function VideoCard({
       </div>
 
       {/* Corps de la carte */}
-      <div className="flex flex-col flex-1 p-3 gap-2">
+      <div className="flex flex-col flex-1 p-4 gap-2">
         {/* Résumé */}
         {g.summary ? (
-          <p className="text-xs text-gray-200 line-clamp-2 leading-relaxed">{g.summary}</p>
+          <p className="text-sm text-gray-200 leading-relaxed">{g.summary}</p>
         ) : (
           <p className="text-[11px] text-gray-500 truncate font-mono">{g.source_url}</p>
+        )}
+
+        {/* Plateforme */}
+        {g.summary && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span>{getPlatformInfo(g.source_url).emoji}</span>
+            <span>{getPlatformInfo(g.source_url).name}</span>
+          </div>
         )}
 
         {/* Langue source */}
@@ -509,7 +544,7 @@ function VideoCard({
           {g.variants.map((v) => {
             const flag = LANG_FLAGS[v.lang] ?? '🌐';
             const name = LANG_NAMES[v.lang] ?? v.lang;
-            const isDone   = v.status === 'done';
+            const isDone   = isPlayable(v);
             const isActive = ACTIVE_STATUSES.has(v.status);
             return (
               <button
@@ -538,17 +573,22 @@ function VideoCard({
             );
           })}
 
-          {/* Bouton + Ajouter une langue */}
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddLang(g); }}
-            title="Ajouter une traduction"
-            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border border-dashed border-gray-700 text-gray-600 hover:border-blue-600 hover:text-blue-400 text-[10px] transition-all"
-          >
-            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>+</span>
-          </button>
+        {/* Bouton + (remplace l’ancien) */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onAddLang(g); }}
+          title={isAuthenticated ? "Ajouter une traduction" : "Connectez-vous pour ajouter"}
+          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border text-[10px] transition-all ${
+            isAuthenticated 
+              ? 'border-dashed border-gray-700 text-gray-600 hover:border-blue-600 hover:text-blue-400'
+              : 'border-dashed border-amber-600/70 text-amber-400 hover:border-amber-500 hover:text-amber-300'
+          }`}
+        >
+          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>+</span>
+          {!isAuthenticated && <span className="text-[9px] ml-1">se connecter</span>}
+        </button>
         </div>
 
         {/* Footer */}
@@ -603,16 +643,19 @@ function VideoGrid({
   onPlay,
   onAddLang,
   onOpenInStudio,
+  isAuthenticated = false,
 }: {
   groups: GroupedVideo[];
   showDownload?: boolean;
   onPlay: (group: GroupedVideo, lang?: string) => void;
   onAddLang: (g: GroupedVideo) => void;
   onOpenInStudio?: (g: GroupedVideo) => void;
+  isAuthenticated?: boolean;
 }) {
   if (groups.length === 0) return null;
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
       {groups.map((g) => (
         <VideoCard
           key={g.key}
@@ -621,6 +664,7 @@ function VideoGrid({
           onPlay={onPlay}
           onAddLang={onAddLang}
           onOpenInStudio={onOpenInStudio}
+          isAuthenticated={isAuthenticated}
         />
       ))}
     </div>
@@ -796,7 +840,7 @@ export default function LibraryPage() {
                         {t('inProgress', { count: activeGroups.length })}
                       </p>
                     </div>
-                    <VideoGrid groups={activeGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={activeGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} isAuthenticated={isAuthenticated} />
                   </div>
                 )}
                 {doneGroups.length > 0 && (
@@ -804,7 +848,7 @@ export default function LibraryPage() {
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-4">
                       {t('done', { count: doneGroups.length })}
                     </p>
-                    <VideoGrid groups={doneGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} onOpenInStudio={handleOpenInStudio} />
+                    <VideoGrid groups={doneGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} onOpenInStudio={handleOpenInStudio} isAuthenticated={isAuthenticated} />
                   </div>
                 )}
                 {errorGroups.length > 0 && (
@@ -812,7 +856,7 @@ export default function LibraryPage() {
                     <p className="text-[11px] font-bold uppercase tracking-widest text-red-500 mb-4">
                       {t('errors', { count: errorGroups.length })}
                     </p>
-                    <VideoGrid groups={errorGroups} showDownload={false} onPlay={handlePlay} onAddLang={setAddLangVideo} />
+                    <VideoGrid groups={errorGroups} showDownload={false} onPlay={handlePlay} onAddLang={setAddLangVideo} isAuthenticated={isAuthenticated} />
                   </div>
                 )}
               </div>
@@ -847,7 +891,7 @@ export default function LibraryPage() {
               <p className="text-xs text-gray-500">Soyez le premier à traduire une vidéo !</p>
             </div>
           ) : (
-            <VideoGrid groups={publicGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} />
+            <VideoGrid groups={publicGroups} onPlay={handlePlay} onAddLang={setAddLangVideo} isAuthenticated={isAuthenticated} />
           )}
         </section>
 

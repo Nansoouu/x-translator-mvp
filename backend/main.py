@@ -8,6 +8,9 @@ from api.auth import router as auth_router
 from api.jobs import router as jobs_router
 from api.billing import router as billing_router
 from api.studio import router as studio_router
+from api.jobs_upload_endpoint import router as upload_router
+from api.subtitle_preview import router as subtitle_preview_router
+from api.stats import router as stats_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +25,9 @@ app.include_router(auth_router)
 app.include_router(jobs_router)
 app.include_router(billing_router)
 app.include_router(studio_router)
+app.include_router(upload_router)
+app.include_router(subtitle_preview_router)
+app.include_router(stats_router)
 
 @app.get("/health")
 async def health():

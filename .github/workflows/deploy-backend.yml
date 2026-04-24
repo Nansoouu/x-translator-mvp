@@ -1,0 +1,44 @@
+# Déploiement Railway Backend pour x-translator-mvp
+
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Railway
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+      
+      - name: Deploy to Railway
+        uses: railway-app/deploy-action@v2
+        with:
+          project: backend
+          workingDirectory: backend
+          env: |
+            RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }}
+            RAILWAY_API_KEY=${{ secrets.RAILWAY_API_KEY }}
+      
+      - name: Deploy Worker
+        uses: railway-app/deploy-action@v2
+        with:
+          project: worker
+          workingDirectory: backend
+          env: |
+            RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }}
+            RAILWAY_API_KEY=${{ secrets.RAILWAY_API_KEY }}

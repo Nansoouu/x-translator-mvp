@@ -56,7 +56,8 @@ async def _force_done_status(
     soft_time_limit=36000,  # 10h → permet de finir proprement
     queue="video_processing",
 )
-def process_video_task(self, job_id: str, source_url: str, target_lang: str, user_id: str):
+def process_video_task(self, job_id: str, source_url: str, target_lang: str, user_id: str, 
+                       download_only: bool = False, original_filename: str | None = None):
     """Enveloppe Celery pour le pipeline async process_video()."""
     # Reset du pool asyncpg : chaque task Celery cree un nouveau event loop
     # via asyncio.run(), le pool du run precedent serait lie a un loop ferme.
@@ -66,6 +67,14 @@ def process_video_task(self, job_id: str, source_url: str, target_lang: str, use
     from core.pipeline import process_video
 
     try:
+        # Si download_only, on adapte le pipeline
+        if download_only:
+            # Pour le mode download, on peut soit:
+            # 1. Appeler une fonction spécifique (si elle existe)
+            # 2. Appeler process_video avec target_lang = "none" (comme déjà fait)
+            # Le pipeline gère déjà le mode "download" via target_lang="none"
+            print(f"[celery] Mode download_only activé pour job {job_id[:8]}...")
+        
         result = asyncio.run(process_video(job_id, source_url, target_lang, user_id))
 
         # Garantie DB : si pipeline.py n'a pas pu faire l'UPDATE final

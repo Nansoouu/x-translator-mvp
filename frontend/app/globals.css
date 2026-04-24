@@ -5,3 +5,22 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Flip digit (tableau de gare) ───────────────────────────────────────── */
+@keyframes flipIn {
+  0%   { transform: rotateX(-90deg); opacity: 0; }
+  100% { transform: rotateX(0deg);   opacity: 1; }
+}
+.flip-digit {
+  display: inline-block;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #22d3ee;
+  line-height: 1.2;
+  animation: flipIn 0.35s ease-out;
+}

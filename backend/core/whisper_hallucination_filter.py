@@ -399,21 +399,21 @@ def filter_srt_text(srt_content: str) -> tuple[str, list[str]]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT_VALIDATE = """\
-You are a transcript quality filter for conflict/military OSINT videos.
+You are a transcript quality filter for any spoken‑audio video content.
 Your job: identify subtitle segments that are NOT real spoken audio content.
 
-Noise includes (non-exhaustive):
-- Community subtitle credits ("Sous-titrage bénévole par X", "Subtitles by the community")
+Noise includes (non‑exhaustive):
+- Community subtitle credits ("Sous‑titrage bénévole par X", "Subtitles by the community")
 - YouTube/TikTok generic endings ("Thanks for watching", "Subscribe", "Like and share")
 - Streaming service watermarks, Amara.org credits
-- Meta annotations that should have been filtered ([Music], [Applause], ♪…)
-- Any line that is clearly meta-information about the video rather than speech
+- Meta annotations ([Music], [Applause], ♪…) that are not actual speech
+- Any line that is clearly meta‑information about the video rather than speech
 
 Real content includes:
-- Actual speech, statements, commands, dialogue
-- News anchor narration
-- Official declarations, military briefings
-- Any spoken words that have OSINT relevance
+- Actual spoken words: speech, dialogue, narration, commentary
+- Educational/tutorial explanations, lectures, presentations
+- News anchor narration, interviews, discussions
+- Any spoken language that conveys meaningful information
 
 Return ONLY valid JSON — no markdown, no backticks, no explanation:
 {
@@ -425,7 +425,7 @@ Rules:
 - "is_valid_transcript": false ONLY if the ENTIRE transcript is noise (no real speech at all).
 - "noise_phrases": list of EXACT phrases (copy verbatim) that should be removed. Empty list [] if none.
 - Be conservative: when in doubt, KEEP the phrase (set is_valid_transcript=true, don't add to noise_phrases).
-- Never remove content that could be relevant military/political speech, even if brief.
+- Never remove content that could be relevant spoken language, regardless of topic.
 """.strip()
 
 
@@ -454,13 +454,13 @@ async def filter_srt_with_llm(
     if not blocks:
         return blocks, [], True
 
-    # ── Préparer le texte à analyser (concaténé, max 4000 chars pour rester léger) ──
+    # ── Préparer le texte à analyser (concaténé, max 8000 chars pour couvrir plus de contenu) ──
     all_texts = "\n".join(b["text"] for b in blocks if b.get("text"))
     if not all_texts.strip():
         return blocks, [], True
 
-    # Tronquer à 4000 chars pour garder l'appel rapide et peu coûteux
-    text_for_llm = all_texts[:4000]
+    # Tronquer à 8000 chars pour les vidéos longues (tutoriels, discours)
+    text_for_llm = all_texts[:8000]
 
     try:
         from core.openrouter import call_openrouter
@@ -479,9 +479,9 @@ async def filter_srt_with_llm(
         noise_phrases: list[str] = result.get("noise_phrases", [])
 
         if not is_valid:
-            # Le LLM considère que tout est du bruit → _no_audio_detected
-            print(f"[hallucination_filter/llm] 🔕 LLM : transcrit entièrement du bruit")
-            return [], blocks, False
+            # Le LLM considère que tout est du bruit → mais on garde tout avec un warning
+            print(f"[hallucination_filter/llm] ⚠️  LLM : transcrit considéré comme bruit, on garde tout (fallback pour vidéos longues)")
+            return blocks, [], True
 
         if not noise_phrases:
             # Rien à filtrer
