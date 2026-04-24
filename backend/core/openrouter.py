@@ -12,8 +12,9 @@ from typing import Any
 from core.config import settings
 
 # ── Modèles ───────────────────────────────────────────────
-PRIMARY_MODEL  = "deepseek/deepseek-chat-v3-0324"
-FALLBACK_MODEL = "mistralai/mistral-large"
+# Vérifier la disponibilité des modèles sur https://openrouter.ai/models
+PRIMARY_MODEL  = "deepseek/deepseek-chat"
+FALLBACK_MODEL = "openai/gpt-4o-mini"
 
 OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_TIMEOUT = 90.0
