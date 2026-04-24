@@ -78,7 +78,11 @@
     "roadmap4Desc": "מדוד את המעורבות של הסרטונים המתורגמים שלך לפי שפה ואזור.",
     "langsTitle": "שפות {count} זמינות",
     "footerCopyright": "© 2026 SpottedYou Translator · נבנה עם ❤️",
-    "chooseLang": "🌐 בחר שפה למעלה"
+    "chooseLang": "🌐 בחר שפה למעלה",
+    "miniProof": "בשימוש על ידי יוצרים שפורחים בעולם!",
+    "counterVideos": "סרטונים מתורגמים",
+    "counterMinutes": "פרוטוקולים של תוכן",
+    "counterToday": "הַיוֹם"
   },
   "LibraryPage": {
     "myVideosTitle": "הסרטונים שלי",
@@ -133,7 +137,15 @@
     "registerButton": "צור את החשבון שלי ←",
     "registering": "יְצִירָה…",
     "switchToRegister": "הַרשָׁמָה",
-    "switchToLogin": "קֶשֶׁר"
+    "switchToLogin": "קֶשֶׁר",
+    "confirmEmailLabel": "אשר את האימייל",
+    "passwordHint": "מינימום 8 תווים",
+    "emailMismatch": "המיילים לא תואמים.",
+    "passwordMismatch": "הסיסמאות אינן תואמות.",
+    "confirmRequired": "נא לאשר את האימייל והסיסמה שלך.",
+    "registerSuccess": "חשבון נוצר! בדוק את האימייל שלך כדי לאשר את הרישום שלך.",
+    "genericError": "אירעה שגיאה.",
+    "terms": "ביצירת חשבון אתה מסכים לתנאי השימוש בשירות."
   },
   "BillingPage": {
     "title": "בחר את התוכנית שלך",
@@ -228,5 +240,32 @@
     "translatingLabel": "תרגום מתבצע...",
     "burningLabel": "מסיים את הסרטון...",
     "uploadingLabel": "כמעט מוכן…"
+  },
+  "JobEditor": {
+    "loading": "טוען את העורך...",
+    "errorBackHome": "← חזרה לבית",
+    "breadcrumbHome": "🏠 הבית",
+    "breadcrumbEditor": "מוציא לאור • {id}…",
+    "breadcrumbLibrary": "📂 הספרייה שלי",
+    "videoNotAvailable": "הסרטון אינו זמין",
+    "studioTitle": "✂️ סטודיו לעריכה",
+    "studioDesc": "גזור, מיזוג, ערוך כתוביות, סדר מחדש את הפלחים שלך",
+    "exportTitle": "📤 ייצוא קליפים",
+    "exportConcatLabel": "שרשרת את כל הקליפים לסרטון אחד",
+    "exportButton": "🚀 ייצוא {count} מקטע {s}",
+    "exportProgress": "ייצוא מתבצע...",
+    "exportError": "❌ שגיאה במהלך הייצוא",
+    "exportRetry": "נסה שוב",
+    "exportDone": "✅ {count} clip{s} שנוצר {s}",
+    "exportConcatAvailable": "גרסה משורשרת זמינה",
+    "clipLabel": "קליפ {n}",
+    "clipDownload": "⬇ הורד",
+    "concatDownload": "⬇ הורד סרטון משורשר",
+    "backToEditor": "← חזרה לעריכה",
+    "toastClipExported": "✅ {count} clip{s} מיוצא {s}",
+    "toastExportError": "❌ שגיאה במהלך הייצוא",
+    "formatYoutube": "יוטיוב",
+    "formatTikTok": "TikTok • סלילים",
+    "formatInsta": "ריבוע אינסטה"
   }
 }

@@ -78,7 +78,11 @@
     "roadmap4Desc": "Avalie o envolvimento dos seus vídeos traduzidos por idioma e região.",
     "langsTitle": "Idiomas {count} disponíveis",
     "footerCopyright": "© 2026 SpottedYou Tradutor · Construído com ❤️",
-    "chooseLang": "🌐 Escolha um idioma acima"
+    "chooseLang": "🌐 Escolha um idioma acima",
+    "miniProof": "Usado por criadores que estão crescendo internacionalmente!",
+    "counterVideos": "Vídeos traduzidos",
+    "counterMinutes": "Minutos de conteúdo",
+    "counterToday": "Hoje"
   },
   "LibraryPage": {
     "myVideosTitle": "Meus vídeos",
@@ -133,7 +137,15 @@
     "registerButton": "Criar minha conta →",
     "registering": "Criação…",
     "switchToRegister": "Cadastro",
-    "switchToLogin": "Conexão"
+    "switchToLogin": "Conexão",
+    "confirmEmailLabel": "Confirmar e-mail",
+    "passwordHint": "Mínimo de 8 caracteres",
+    "emailMismatch": "Os e-mails não coincidem.",
+    "passwordMismatch": "As senhas não coincidem.",
+    "confirmRequired": "Por favor confirme seu e-mail e senha.",
+    "registerSuccess": "Conta criada! Verifique seu e-mail para confirmar seu cadastro.",
+    "genericError": "Ocorreu um erro.",
+    "terms": "Ao criar uma conta você aceita os termos de uso do serviço."
   },
   "BillingPage": {
     "title": "Escolha seu plano",
@@ -228,5 +240,32 @@
     "translatingLabel": "Tradução em andamento…",
     "burningLabel": "Finalizando o vídeo…",
     "uploadingLabel": "Quase pronto…"
+  },
+  "JobEditor": {
+    "loading": "Carregando o editor…",
+    "errorBackHome": "← De volta para casa",
+    "breadcrumbHome": "🏠 Casa",
+    "breadcrumbEditor": "Editora • {id}…",
+    "breadcrumbLibrary": "📂 Minha biblioteca",
+    "videoNotAvailable": "Vídeo não disponível",
+    "studioTitle": "✂️ Estúdio de Edição",
+    "studioDesc": "Corte, mescle, edite legendas, reorganize seus segmentos",
+    "exportTitle": "📤 Exportar clipes",
+    "exportConcatLabel": "Concatene todos os clipes em um vídeo",
+    "exportButton": "🚀 Exportar segmento {count}{s}",
+    "exportProgress": "Exportação em andamento…",
+    "exportError": "❌ Erro durante a exportação",
+    "exportRetry": "Tente novamente",
+    "exportDone": "✅ Clipe {count}{s} gerado{s}",
+    "exportConcatAvailable": "Versão concatenada disponível",
+    "clipLabel": "Clipe {n}",
+    "clipDownload": "⬇ Baixar",
+    "concatDownload": "⬇ Baixe o vídeo concatenado",
+    "backToEditor": "← Voltar para edição",
+    "toastClipExported": "✅ Clipe {count}{s} exportado{s}",
+    "toastExportError": "❌ Erro durante a exportação",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Momentos",
+    "formatInsta": "Quadrado instantâneo"
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -65,6 +66,7 @@ function AnimatedDigit({ target, suffix = "" }: AnimatedDigitProps) {
 }
 
 export default function CountersBar() {
+  const t = useTranslations('HomePage');
   const [data, setData] = useState<CountersData>({
     total_videos: 0,
     total_duration_s: 0,
@@ -94,7 +96,7 @@ export default function CountersBar() {
         <AnimatedDigit target={data.total_videos} />
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
-            Vidéos traduites
+            {t('counterVideos')}
           </span>
           {data.trend_pct !== 0 && (
             <span className={`text-[10px] font-bold ${data.trend_pct > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -111,9 +113,9 @@ export default function CountersBar() {
       <div className="flex flex-col items-center gap-1.5">
         <span className="text-2xl">⏱️</span>
         <AnimatedDigit target={Math.round(data.total_duration_s / 60)} />
-        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
-          Minutes de contenu
-        </span>
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
+            {t('counterMinutes')}
+          </span>
       </div>
 
       {/* Barre séparatrice */}
@@ -123,9 +125,9 @@ export default function CountersBar() {
       <div className="flex flex-col items-center gap-1.5">
         <span className="text-2xl">⚡</span>
         <AnimatedDigit target={data.today_videos} />
-        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
-          Aujourd'hui
-        </span>
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">
+            {t('counterToday')}
+          </span>
       </div>
     </div>
   );

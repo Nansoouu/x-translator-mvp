@@ -78,7 +78,11 @@
     "roadmap4Desc": "Messen Sie das Engagement Ihrer übersetzten Videos nach Sprache und Region.",
     "langsTitle": "{count}-Sprachen verfügbar",
     "footerCopyright": "© 2026 SpottedYou Translator · Mit ❤️ erstellt",
-    "chooseLang": "🌐 Wählen Sie oben eine Sprache"
+    "chooseLang": "🌐 Wählen Sie oben eine Sprache",
+    "miniProof": "Wird von YouTubern verwendet, die international boomen!",
+    "counterVideos": "Übersetzte Videos",
+    "counterMinutes": "Minutenlanger Inhalt",
+    "counterToday": "Heute"
   },
   "LibraryPage": {
     "myVideosTitle": "Meine Videos",
@@ -133,7 +137,15 @@
     "registerButton": "Mein Konto erstellen →",
     "registering": "Schaffung…",
     "switchToRegister": "Anmeldung",
-    "switchToLogin": "Verbindung"
+    "switchToLogin": "Verbindung",
+    "confirmEmailLabel": "E-Mail bestätigen",
+    "passwordHint": "Mindestens 8 Zeichen",
+    "emailMismatch": "Die E-Mails stimmen nicht überein.",
+    "passwordMismatch": "Passwörter stimmen nicht überein.",
+    "confirmRequired": "Bitte bestätigen Sie Ihre E-Mail-Adresse und Ihr Passwort.",
+    "registerSuccess": "Konto erstellt! Überprüfen Sie Ihre E-Mails, um Ihre Registrierung zu bestätigen.",
+    "genericError": "Es ist ein Fehler aufgetreten.",
+    "terms": "Durch die Erstellung eines Kontos akzeptieren Sie die Nutzungsbedingungen des Dienstes."
   },
   "BillingPage": {
     "title": "Wählen Sie Ihren Plan",
@@ -228,5 +240,32 @@
     "translatingLabel": "Übersetzung in Bearbeitung…",
     "burningLabel": "Fertigstellung des Videos…",
     "uploadingLabel": "Fast fertig…"
+  },
+  "JobEditor": {
+    "loading": "Der Editor wird geladen…",
+    "errorBackHome": "← Zurück nach Hause",
+    "breadcrumbHome": "🏠 Zuhause",
+    "breadcrumbEditor": "Herausgeber • {id}…",
+    "breadcrumbLibrary": "📂 Meine Bibliothek",
+    "videoNotAvailable": "Video nicht verfügbar",
+    "studioTitle": "✂️ Bearbeitungsstudio",
+    "studioDesc": "Schneiden Sie Ihre Segmente aus, fügen Sie sie zusammen, bearbeiten Sie Untertitel und ordnen Sie sie neu an",
+    "exportTitle": "📤 Clips exportieren",
+    "exportConcatLabel": "Fassen Sie alle Clips zu einem Video zusammen",
+    "exportButton": "🚀 {count}-Segment{s} exportieren",
+    "exportProgress": "Export läuft…",
+    "exportError": "❌ Fehler beim Export",
+    "exportRetry": "Versuchen Sie es erneut",
+    "exportDone": "✅ {count} Clip{s} generiert{s}",
+    "exportConcatAvailable": "Verkettete Version verfügbar",
+    "clipLabel": "Clip {n}",
+    "clipDownload": "⬇ Herunterladen",
+    "concatDownload": "⬇ Laden Sie das verkettete Video herunter",
+    "backToEditor": "← Zurück zur Bearbeitung",
+    "toastClipExported": "✅ {count} Clip{s} exportiert{s}",
+    "toastExportError": "❌ Fehler beim Export",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Rollen",
+    "formatInsta": "Insta-Quadrat"
   }
 }

@@ -78,7 +78,11 @@
     "roadmap4Desc": "Mierz zaangażowanie przetłumaczonych filmów według języka i regionu.",
     "langsTitle": "Dostępne języki {count}",
     "footerCopyright": "© 2026 Tłumacz SpottedYou · Zbudowany z ❤️",
-    "chooseLang": "🌐 Wybierz język powyżej"
+    "chooseLang": "🌐 Wybierz język powyżej",
+    "miniProof": "Używane przez twórców, którzy rozwijają się na arenie międzynarodowej!",
+    "counterVideos": "Przetłumaczone filmy",
+    "counterMinutes": "Minuty treści",
+    "counterToday": "Dzisiaj"
   },
   "LibraryPage": {
     "myVideosTitle": "Moje filmy",
@@ -133,7 +137,15 @@
     "registerButton": "Utwórz moje konto →",
     "registering": "Tworzenie…",
     "switchToRegister": "Rejestracja",
-    "switchToLogin": "Połączenie"
+    "switchToLogin": "Połączenie",
+    "confirmEmailLabel": "Potwierdź e-mail",
+    "passwordHint": "Minimum 8 znaków",
+    "emailMismatch": "E-maile nie pasują.",
+    "passwordMismatch": "Hasła nie pasują.",
+    "confirmRequired": "Proszę potwierdzić swój adres e-mail i hasło.",
+    "registerSuccess": "Konto utworzone! Sprawdź swoją pocztę e-mail, aby potwierdzić rejestrację.",
+    "genericError": "Wystąpił błąd.",
+    "terms": "Zakładając konto akceptujesz regulamin korzystania z usługi."
   },
   "BillingPage": {
     "title": "Wybierz swój plan",
@@ -228,5 +240,32 @@
     "translatingLabel": "Tłumaczenie w toku…",
     "burningLabel": "Finalizowanie filmu…",
     "uploadingLabel": "Prawie gotowe…"
+  },
+  "JobEditor": {
+    "loading": "Ładowanie edytora…",
+    "errorBackHome": "← Powrót do domu",
+    "breadcrumbHome": "🏠 Dom",
+    "breadcrumbEditor": "Wydawca • {id}…",
+    "breadcrumbLibrary": "📂Moja biblioteka",
+    "videoNotAvailable": "Film niedostępny",
+    "studioTitle": "✂️ Studio montażowe",
+    "studioDesc": "Wycinaj, łącz, edytuj napisy, zmieniaj układ segmentów",
+    "exportTitle": "📤 Eksportuj klipy",
+    "exportConcatLabel": "Połącz wszystkie klipy w jeden film",
+    "exportButton": "🚀 Eksportuj segment {count}{s}",
+    "exportProgress": "Eksport w toku…",
+    "exportError": "❌ Błąd podczas eksportu",
+    "exportRetry": "Spróbuj ponownie",
+    "exportDone": "✅Klip {count}{s} wygenerowany{s}",
+    "exportConcatAvailable": "Dostępna wersja połączona",
+    "clipLabel": "Klip {n}",
+    "clipDownload": "⬇ Pobierz",
+    "concatDownload": "⬇ Pobierz połączony film",
+    "backToEditor": "← Powrót do edycji",
+    "toastClipExported": "✅ Klip {count}{s} wyeksportowany{s}",
+    "toastExportError": "❌ Błąd podczas eksportu",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Kołowrotki",
+    "formatInsta": "Plac Insta"
   }
 }

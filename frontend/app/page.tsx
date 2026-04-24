@@ -369,8 +369,8 @@ export default function Home() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">minutes</span>
           </h1>
 
-          <p className="text-sm sm:text-base text-gray-400 max-w-lg mx-auto mb-8 leading-relaxed">
-            Your video translated, subtitled and ready to share, effortlessly.
+          <p className="text-sm sm:text-base text-gray-300 max-w-xl mx-auto mb-8 leading-relaxed">
+            {t('heroSubtitle')}
           </p>
 
           {/* CTA */}
@@ -390,6 +390,11 @@ export default function Home() {
               {t('ctaRegister')}
             </Link>
           </div>
+
+          {/* Mini-preuve sociale */}
+          <p className="text-xs text-gray-600 mt-3">
+            {t('miniProof')}
+          </p>
 
           {/* Compteurs live */}
           <div className="mt-12 mb-6"><CountersBar /></div>

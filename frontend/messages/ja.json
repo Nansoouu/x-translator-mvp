@@ -78,7 +78,11 @@
     "roadmap4Desc": "翻訳された動画のエンゲージメントを言語と地域ごとに測定します。",
     "langsTitle": "{count}言語が利用可能",
     "footerCopyright": "© 2026 SpottedYou 翻訳者 · ❤️ で構築",
-    "chooseLang": "🌐 上から言語を選択してください"
+    "chooseLang": "🌐 上から言語を選択してください",
+    "miniProof": "海外で人気急上昇中のクリエイターも愛用！",
+    "counterVideos": "翻訳されたビデオ",
+    "counterMinutes": "コンテンツの分",
+    "counterToday": "今日"
   },
   "LibraryPage": {
     "myVideosTitle": "私のビデオ",
@@ -133,7 +137,15 @@
     "registerButton": "アカウントを作成 →",
     "registering": "創造…",
     "switchToRegister": "登録",
-    "switchToLogin": "繋がり"
+    "switchToLogin": "繋がり",
+    "confirmEmailLabel": "Eメール確認",
+    "passwordHint": "8文字以上",
+    "emailMismatch": "メールが一致しません。",
+    "passwordMismatch": "パスワードが一致しません。",
+    "confirmRequired": "メールアドレスとパスワードをご確認ください。",
+    "registerSuccess": "アカウントが作成されました!メールを確認して登録を確認してください。",
+    "genericError": "エラーが発生しました。",
+    "terms": "アカウントを作成すると、サービスの利用規約に同意したことになります。"
   },
   "BillingPage": {
     "title": "プランを選択してください",
@@ -228,5 +240,32 @@
     "translatingLabel": "翻訳中…",
     "burningLabel": "ビデオを完成させています…",
     "uploadingLabel": "ほぼ準備完了です…"
+  },
+  "JobEditor": {
+    "loading": "エディタをロード中…",
+    "errorBackHome": "← ホームへ戻る",
+    "breadcrumbHome": "🏠 ホーム",
+    "breadcrumbEditor": "パブリッシャー • {id}…",
+    "breadcrumbLibrary": "📂 私のライブラリ",
+    "videoNotAvailable": "ビデオは利用できません",
+    "studioTitle": "✂️編集スタジオ",
+    "studioDesc": "字幕の切り取り、結合、編集、セグメントの再配置",
+    "exportTitle": "📤 クリップをエクスポート",
+    "exportConcatLabel": "すべてのクリップを 1 つのビデオに連結します",
+    "exportButton": "🚀 {count} セグメント{s} をエクスポート",
+    "exportProgress": "エクスポート中…",
+    "exportError": "❌ エクスポート中のエラー",
+    "exportRetry": "もう一度やり直してください",
+    "exportDone": "✅ {count} クリップ{s} 生成{s}",
+    "exportConcatAvailable": "連結バージョンも利用可能",
+    "clipLabel": "クリップ{n}",
+    "clipDownload": "⬇ ダウンロード",
+    "concatDownload": "⬇ 連結されたビデオをダウンロード",
+    "backToEditor": "← 編集に戻る",
+    "toastClipExported": "✅ {count} クリップ{s} エクスポートされた{s}",
+    "toastExportError": "❌ エクスポート中のエラー",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • リール",
+    "formatInsta": "インスタ広場"
   }
 }

@@ -78,7 +78,11 @@
     "roadmap4Desc": "میزان تعامل ویدیوهای ترجمه شده خود را بر اساس زبان و منطقه اندازه گیری کنید.",
     "langsTitle": "زبان های {count} موجود است",
     "footerCopyright": "© 2026 SpottedYou Translator · ساخته شده با ❤️",
-    "chooseLang": "🌐 زبان بالا را انتخاب کنید"
+    "chooseLang": "🌐 زبان بالا را انتخاب کنید",
+    "miniProof": "توسط سازندگانی که در سطح بین المللی در حال رونق هستند استفاده می شود!",
+    "counterVideos": "ویدیوهای ترجمه شده",
+    "counterMinutes": "صورتجلسه مطالب",
+    "counterToday": "امروز"
   },
   "LibraryPage": {
     "myVideosTitle": "ویدیوهای من",
@@ -133,7 +137,15 @@
     "registerButton": "ایجاد حساب کاربری من →",
     "registering": "ایجاد…",
     "switchToRegister": "ثبت نام",
-    "switchToLogin": "اتصال"
+    "switchToLogin": "اتصال",
+    "confirmEmailLabel": "تایید ایمیل",
+    "passwordHint": "حداقل 8 کاراکتر",
+    "emailMismatch": "ایمیل ها مطابقت ندارند.",
+    "passwordMismatch": "گذرواژه ها مطابقت ندارند.",
+    "confirmRequired": "لطفا ایمیل و رمز عبور خود را تایید کنید.",
+    "registerSuccess": "حساب ایجاد شد! برای تایید ثبت نام، ایمیل خود را بررسی کنید.",
+    "genericError": "خطایی رخ داده است.",
+    "terms": "با ایجاد حساب کاربری، شرایط استفاده از سرویس را می پذیرید."
   },
   "BillingPage": {
     "title": "طرح خود را انتخاب کنید",
@@ -228,5 +240,32 @@
     "translatingLabel": "ترجمه در حال انجام…",
     "burningLabel": "در حال نهایی شدن ویدیو…",
     "uploadingLabel": "تقریبا آماده…"
+  },
+  "JobEditor": {
+    "loading": "در حال بارگیری ویرایشگر…",
+    "errorBackHome": "← بازگشت به خانه",
+    "breadcrumbHome": "🏠 خانه",
+    "breadcrumbEditor": "ناشر • {id}…",
+    "breadcrumbLibrary": "📂 کتابخانه من",
+    "videoNotAvailable": "ویدیو در دسترس نیست",
+    "studioTitle": "✂️ استودیو ویرایش",
+    "studioDesc": "برش، ادغام، ویرایش زیرنویس ها، تنظیم مجدد بخش های خود",
+    "exportTitle": "📤 صادرات کلیپ",
+    "exportConcatLabel": "همه کلیپ ها را در یک ویدیو ادغام کنید",
+    "exportButton": "🚀 صادرات {count} segment{s}",
+    "exportProgress": "صادرات در حال انجام…",
+    "exportError": "❌ خطا در حین صادرات",
+    "exportRetry": "دوباره امتحان کنید",
+    "exportDone": "✅ {count} clip{s} {s} ایجاد کرد",
+    "exportConcatAvailable": "نسخه پیوسته موجود است",
+    "clipLabel": "کلیپ {n}",
+    "clipDownload": "⬇ دانلود کنید",
+    "concatDownload": "⬇ دانلود ویدیوی پیوسته",
+    "backToEditor": "← بازگشت به ویرایش",
+    "toastClipExported": "✅ {count} clip{s} صادرات{s}",
+    "toastExportError": "❌ خطا در حین صادرات",
+    "formatYoutube": "یوتیوب",
+    "formatTikTok": "TikTok • قرقره ها",
+    "formatInsta": "میدان اینستا"
   }
 }

@@ -78,7 +78,11 @@
     "roadmap4Desc": "Misura il coinvolgimento dei tuoi video tradotti per lingua e regione.",
     "langsTitle": "Lingue {count} disponibili",
     "footerCopyright": "© 2026 SpottedYou Traduttore · Costruito con ❤️",
-    "chooseLang": "🌐 Scegli una lingua sopra"
+    "chooseLang": "🌐 Scegli una lingua sopra",
+    "miniProof": "Utilizzato da creatori in forte espansione a livello internazionale!",
+    "counterVideos": "Video tradotti",
+    "counterMinutes": "Minuti di contenuto",
+    "counterToday": "Oggi"
   },
   "LibraryPage": {
     "myVideosTitle": "I miei video",
@@ -133,7 +137,15 @@
     "registerButton": "Crea il mio account →",
     "registering": "Creazione…",
     "switchToRegister": "Registrazione",
-    "switchToLogin": "Connessione"
+    "switchToLogin": "Connessione",
+    "confirmEmailLabel": "Conferma email",
+    "passwordHint": "Minimo 8 caratteri",
+    "emailMismatch": "Le email non corrispondono.",
+    "passwordMismatch": "Le password non corrispondono.",
+    "confirmRequired": "Per favore conferma la tua email e la tua password.",
+    "registerSuccess": "Account creato! Controlla la tua email per confermare la tua registrazione.",
+    "genericError": "Si è verificato un errore.",
+    "terms": "Creando un account accetti i termini di utilizzo del servizio."
   },
   "BillingPage": {
     "title": "Scegli il tuo piano",
@@ -228,5 +240,32 @@
     "translatingLabel": "Traduzione in corso...",
     "burningLabel": "Finalizzazione del video...",
     "uploadingLabel": "Quasi pronto…"
+  },
+  "JobEditor": {
+    "loading": "Caricamento dell'editor…",
+    "errorBackHome": "← Ritorno a casa",
+    "breadcrumbHome": "🏠 Casa",
+    "breadcrumbEditor": "Editore • {id}…",
+    "breadcrumbLibrary": "📂 La mia biblioteca",
+    "videoNotAvailable": "Video non disponibile",
+    "studioTitle": "✂️ Studio di montaggio",
+    "studioDesc": "Taglia, unisci, modifica i sottotitoli, riorganizza i segmenti",
+    "exportTitle": "📤 Esporta clip",
+    "exportConcatLabel": "Concatena tutte le clip in un unico video",
+    "exportButton": "🚀 Esporta il segmento {count}{s}",
+    "exportProgress": "Esportazione in corso...",
+    "exportError": "❌ Errore durante l'esportazione",
+    "exportRetry": "Riprova",
+    "exportDone": "✅ Clip {count}{s} generato{s}",
+    "exportConcatAvailable": "Disponibile la versione concatenata",
+    "clipLabel": "Clip {n}",
+    "clipDownload": "⬇ Scarica",
+    "concatDownload": "⬇ Scarica video concatenati",
+    "backToEditor": "← Torniamo alla modifica",
+    "toastClipExported": "✅ Clip {count}{s} esportato{s}",
+    "toastExportError": "❌ Errore durante l'esportazione",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Bobine",
+    "formatInsta": "Piazza Insta"
   }
 }

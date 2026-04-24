@@ -78,7 +78,11 @@
     "roadmap4Desc": "Вимірюйте зацікавленість ваших перекладених відео за мовою та регіоном.",
     "langsTitle": "Доступні мови {count}",
     "footerCopyright": "© Перекладач SpottedYou, 2026 · Створено за допомогою ❤️",
-    "chooseLang": "🌐 Виберіть мову вище"
+    "chooseLang": "🌐 Виберіть мову вище",
+    "miniProof": "Використовується творцями, які досягають міжнародного успіху!",
+    "counterVideos": "Переклад відео",
+    "counterMinutes": "Хвилини змісту",
+    "counterToday": "Сьогодні"
   },
   "LibraryPage": {
     "myVideosTitle": "Мої відео",
@@ -133,7 +137,15 @@
     "registerButton": "Створити мій обліковий запис →",
     "registering": "Створення…",
     "switchToRegister": "Реєстрація",
-    "switchToLogin": "Підключення"
+    "switchToLogin": "Підключення",
+    "confirmEmailLabel": "Підтвердити електронну адресу",
+    "passwordHint": "Мінімум 8 символів",
+    "emailMismatch": "Електронні адреси не збігаються.",
+    "passwordMismatch": "Паролі не збігаються.",
+    "confirmRequired": "Підтвердьте свою електронну адресу та пароль.",
+    "registerSuccess": "Обліковий запис створено! Перевірте свою електронну пошту, щоб підтвердити реєстрацію.",
+    "genericError": "Сталася помилка.",
+    "terms": "Створюючи обліковий запис, ви приймаєте умови використання сервісу."
   },
   "BillingPage": {
     "title": "Виберіть свій план",
@@ -228,5 +240,32 @@
     "translatingLabel": "Виконується переклад…",
     "burningLabel": "Завершення відео…",
     "uploadingLabel": "Майже готовий…"
+  },
+  "JobEditor": {
+    "loading": "Завантаження редактора…",
+    "errorBackHome": "← Повернутися додому",
+    "breadcrumbHome": "🏠 Додому",
+    "breadcrumbEditor": "Видавець • {id}…",
+    "breadcrumbLibrary": "📂 Моя бібліотека",
+    "videoNotAvailable": "Відео недоступне",
+    "studioTitle": "✂️ Студія монтажу",
+    "studioDesc": "Вирізайте, об'єднуйте, редагуйте субтитри, переставляйте сегменти",
+    "exportTitle": "📤 Експорт кліпів",
+    "exportConcatLabel": "Об’єднайте всі кліпи в одне відео",
+    "exportButton": "🚀 Експорт {count} segment{s}",
+    "exportProgress": "Виконується експорт…",
+    "exportError": "❌ Помилка під час експорту",
+    "exportRetry": "Спробуйте знову",
+    "exportDone": "✅ Кліп {count} {s} створений {s}",
+    "exportConcatAvailable": "Доступна об’єднана версія",
+    "clipLabel": "Кліп {n}",
+    "clipDownload": "⬇ Завантажити",
+    "concatDownload": "⬇ Завантажте об’єднане відео",
+    "backToEditor": "← Назад до редагування",
+    "toastClipExported": "✅ Експортований кліп {count}{s}{s}",
+    "toastExportError": "❌ Помилка під час експорту",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Котушки",
+    "formatInsta": "Інста квадрат"
   }
 }

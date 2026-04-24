@@ -78,7 +78,11 @@
     "roadmap4Desc": "按语言和地区衡量翻译视频的参与度。",
     "langsTitle": "提供 {count} 种语言",
     "footerCopyright": "© 2026 SpottedYou 翻译器 · 使用 ❤️ 构建",
-    "chooseLang": "🌐 在上面选择一种语言"
+    "chooseLang": "🌐 在上面选择一种语言",
+    "miniProof": "被国际上蓬勃发展的创作者所使用！",
+    "counterVideos": "翻译视频",
+    "counterMinutes": "会议纪要内容",
+    "counterToday": "今天"
   },
   "LibraryPage": {
     "myVideosTitle": "我的视频",
@@ -133,7 +137,15 @@
     "registerButton": "创建我的帐户 →",
     "registering": "创建…",
     "switchToRegister": "登记",
-    "switchToLogin": "联系"
+    "switchToLogin": "联系",
+    "confirmEmailLabel": "确认电子邮件",
+    "passwordHint": "最少 8 个字符",
+    "emailMismatch": "电子邮件不匹配。",
+    "passwordMismatch": "密码不匹配。",
+    "confirmRequired": "请确认您的电子邮件和密码。",
+    "registerSuccess": "帐户已创建！检查您的电子邮件以确认您的注册。",
+    "genericError": "发生错误。",
+    "terms": "创建帐户即表示您接受该服务的使用条款。"
   },
   "BillingPage": {
     "title": "选择您的计划",
@@ -228,5 +240,32 @@
     "translatingLabel": "翻译正在进行中...",
     "burningLabel": "视频正在整理中……",
     "uploadingLabel": "快准备好了……"
+  },
+  "JobEditor": {
+    "loading": "正在加载编辑器...",
+    "errorBackHome": "← 返回首页",
+    "breadcrumbHome": "🏠 首页",
+    "breadcrumbEditor": "出版商• {id}…",
+    "breadcrumbLibrary": "📂 我的图书馆",
+    "videoNotAvailable": "视频不可用",
+    "studioTitle": "✂️ 编辑工作室",
+    "studioDesc": "剪切、合并、编辑字幕、重新排列片段",
+    "exportTitle": "📤 导出剪辑",
+    "exportConcatLabel": "将所有剪辑连接成一个视频",
+    "exportButton": "🚀 导出 {count} 段{s}",
+    "exportProgress": "导出正在进行中...",
+    "exportError": "❌ 导出时出错",
+    "exportRetry": "再试一次",
+    "exportDone": "✅ {count} 剪辑{s} 生成{s}",
+    "exportConcatAvailable": "可用串联版本",
+    "clipLabel": "剪辑 {n}",
+    "clipDownload": "⬇ 下载",
+    "concatDownload": "⬇ 下载串联视频",
+    "backToEditor": "← 返回编辑",
+    "toastClipExported": "✅ {count} 剪辑{s} 导出{s}",
+    "toastExportError": "❌ 导出时出错",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • 卷轴",
+    "formatInsta": "Instagram广场"
   }
 }

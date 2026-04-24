@@ -2,9 +2,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 export default function LoginPage() {
+  const t = useTranslations('LoginPage');
   const [mode, setMode]         = useState<'login' | 'register'>('login');
   const [email, setEmail]       = useState('');
   const [emailConfirm, setEmailConfirm] = useState('');
@@ -27,25 +29,24 @@ export default function LoginPage() {
         await login(email, password);
         window.location.href = '/';
       } else {
-        // Validation register
         if (email !== emailConfirm) {
-          throw new Error('Les emails ne correspondent pas.');
+          throw new Error(t('emailMismatch'));
         }
         if (password !== passwordConfirm) {
-          throw new Error('Les mots de passe ne correspondent pas.');
+          throw new Error(t('passwordMismatch'));
         }
         if (!emailConfirm || !passwordConfirm) {
-          throw new Error('Veuillez confirmer votre email et mot de passe.');
+          throw new Error(t('confirmRequired'));
         }
         const res = await register(email, password);
         if (res?.access_token) {
           window.location.href = '/';
         } else {
-          setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
+          setSuccess(t('registerSuccess'));
         }
       }
     } catch (err: any) {
-      setLocalError(err?.message || 'Une erreur est survenue.');
+      setLocalError(err?.message || t('genericError'));
     }
   }
 
@@ -65,7 +66,7 @@ export default function LoginPage() {
             </span>
           </Link>
           <p className="text-xs text-gray-600 mt-2">
-            {mode === 'login' ? 'Bienvenue,' : 'Rejoignez-nous,'} traduisez des vidéos en 21 langues
+            {mode === 'login' ? t('subtitle') : t('registerSubtitle')}
           </p>
         </div>
 
@@ -82,7 +83,7 @@ export default function LoginPage() {
                     : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
                 }`}
               >
-                {m === 'login' ? 'Connexion' : 'Créer un compte'}
+                {m === 'login' ? t('switchToLogin') : t('switchToRegister')}
               </button>
             ))}
           </div>
@@ -90,14 +91,14 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                Email
+                {t('emailLabel')}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="vous@exemple.com"
+                placeholder={t('emailPlaceholder')}
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
             </div>
@@ -105,14 +106,14 @@ export default function LoginPage() {
             {mode === 'register' && (
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                  Confirmer l'email
+                  {t('confirmEmailLabel')}
                 </label>
                 <input
                   type="email"
                   value={emailConfirm}
                   onChange={e => setEmailConfirm(e.target.value)}
                   required
-                  placeholder="vous@exemple.com"
+                  placeholder={t('emailPlaceholder')}
                   autoComplete="off"
                   onPaste={(e) => e.preventDefault()}
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
@@ -122,34 +123,34 @@ export default function LoginPage() {
 
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                Mot de passe
+                {t('passwordLabel')}
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                placeholder={t('passwordPlaceholder')}
                 minLength={mode === 'register' ? 8 : undefined}
                 autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
               />
               {mode === 'register' && (
-                <p className="text-[10px] text-gray-600 mt-1">8 caractères minimum</p>
+                <p className="text-[10px] text-gray-600 mt-1">{t('passwordHint')}</p>
               )}
             </div>
 
             {mode === 'register' && (
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-500 block mb-2">
-                  Confirmer le mot de passe
+                  {t('confirmPasswordLabel')}
                 </label>
                 <input
                   type="password"
                   value={passwordConfirm}
                   onChange={e => setPasswordConfirm(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder={t('passwordPlaceholder')}
                   autoComplete="new-password"
                   onPaste={(e) => e.preventDefault()}
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 transition-colors"
@@ -157,12 +158,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {error && mode === 'login' && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
-                ⚠️ {error}
-              </div>
-            )}
-            {error && mode === 'register' && (
+            {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-xl">
                 ⚠️ {error}
               </div>
@@ -184,25 +180,33 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                   </svg>
-                  Chargement…
+                  {mode === 'login' ? t('loggingIn') : t('registering')}
                 </>
               ) : (
-                mode === 'login' ? 'Se connecter →' : 'Créer mon compte →'
+                mode === 'login' ? t('loginButton') : t('registerButton')
               )}
             </button>
 
             {mode === 'register' && (
               <p className="text-[10px] text-gray-600 text-center leading-relaxed">
-                En créant un compte, vous acceptez les conditions d'utilisation du service.
+                {t('terms')}
               </p>
             )}
           </form>
         </div>
 
         <p className="text-center mt-5">
-          <Link href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
-            ← Retour à l'accueil
-          </Link>
+          {mode === 'login' ? (
+            <>
+              <span className="text-xs text-gray-600">{t('noAccount')} </span>
+              <button onClick={() => { setMode('register'); setLocalError(null); setSuccess(null); }} className="text-xs text-blue-500 hover:text-blue-400 underline transition-colors">{t('registerLink')}</button>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-gray-600">{t('alreadyAccount')} </span>
+              <button onClick={() => { setMode('login'); setLocalError(null); setSuccess(null); }} className="text-xs text-blue-500 hover:text-blue-400 underline transition-colors">{t('loginLink')}</button>
+            </>
+          )}
         </p>
       </div>
     </main>

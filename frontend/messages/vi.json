@@ -78,7 +78,11 @@
     "roadmap4Desc": "Đo lường mức độ tương tác của các video đã dịch của bạn theo ngôn ngữ và khu vực.",
     "langsTitle": "Ngôn ngữ {count} có sẵn",
     "footerCopyright": "© 2026 SpottedYou Translator · Được xây dựng với ❤️",
-    "chooseLang": "🌐 Chọn ngôn ngữ ở trên"
+    "chooseLang": "🌐 Chọn ngôn ngữ ở trên",
+    "miniProof": "Được sử dụng bởi những người sáng tạo đang bùng nổ trên phạm vi quốc tế!",
+    "counterVideos": "Video đã dịch",
+    "counterMinutes": "Biên bản nội dung",
+    "counterToday": "Hôm nay"
   },
   "LibraryPage": {
     "myVideosTitle": "Video của tôi",
@@ -133,7 +137,15 @@
     "registerButton": "Tạo tài khoản của tôi →",
     "registering": "Sáng tạo…",
     "switchToRegister": "Sự đăng ký",
-    "switchToLogin": "Sự liên quan"
+    "switchToLogin": "Sự liên quan",
+    "confirmEmailLabel": "Xác nhận email",
+    "passwordHint": "tối thiểu 8 ký tự",
+    "emailMismatch": "Các email không khớp.",
+    "passwordMismatch": "Mật khẩu không khớp.",
+    "confirmRequired": "Vui lòng xác nhận email và mật khẩu của bạn.",
+    "registerSuccess": "Tài khoản đã được tạo! Kiểm tra email của bạn để xác nhận đăng ký của bạn.",
+    "genericError": "Đã xảy ra lỗi.",
+    "terms": "Bằng cách tạo tài khoản, bạn chấp nhận các điều khoản sử dụng dịch vụ."
   },
   "BillingPage": {
     "title": "Chọn kế hoạch của bạn",
@@ -228,5 +240,32 @@
     "translatingLabel": "Đang dịch…",
     "burningLabel": "Đang hoàn tất video…",
     "uploadingLabel": "Gần như đã sẵn sàng…"
+  },
+  "JobEditor": {
+    "loading": "Đang tải trình chỉnh sửa…",
+    "errorBackHome": "← Trở về nhà",
+    "breadcrumbHome": "🏠 Trang chủ",
+    "breadcrumbEditor": "Nhà xuất bản • {id}…",
+    "breadcrumbLibrary": "📂 Thư viện của tôi",
+    "videoNotAvailable": "Video không có sẵn",
+    "studioTitle": "✂️ Phòng chỉnh sửa",
+    "studioDesc": "Cắt, hợp nhất, chỉnh sửa phụ đề, sắp xếp lại các phân đoạn của bạn",
+    "exportTitle": "📤 Xuất clip",
+    "exportConcatLabel": "Ghép tất cả các clip thành một video",
+    "exportButton": "🚀 Xuất {count} đoạn {s}",
+    "exportProgress": "Đang xuất khẩu…",
+    "exportError": "❌ Lỗi trong quá trình xuất",
+    "exportRetry": "Thử lại",
+    "exportDone": "✅ {count} clip{s} tạo{s}",
+    "exportConcatAvailable": "Đã có phiên bản kết hợp",
+    "clipLabel": "Clip {n}",
+    "clipDownload": "⬇ Tải xuống",
+    "concatDownload": "⬇ Tải video ghép",
+    "backToEditor": "← Quay lại chỉnh sửa",
+    "toastClipExported": "✅ {count} clip{s} xuất{s}",
+    "toastExportError": "❌ Lỗi trong quá trình xuất",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Cuộn phim",
+    "formatInsta": "hình vuông Insta"
   }
 }

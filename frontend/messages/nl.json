@@ -78,7 +78,11 @@
     "roadmap4Desc": "Meet de betrokkenheid van uw vertaalde video's per taal en regio.",
     "langsTitle": "{count}-talen beschikbaar",
     "footerCopyright": "© 2026 SpottedYou Vertaler · Gebouwd met ❤️",
-    "chooseLang": "🌐 Kies hierboven een taal"
+    "chooseLang": "🌐 Kies hierboven een taal",
+    "miniProof": "Gebruikt door makers die internationaal een hoge vlucht nemen!",
+    "counterVideos": "Vertaalde video's",
+    "counterMinutes": "Notulen met inhoud",
+    "counterToday": "Vandaag"
   },
   "LibraryPage": {
     "myVideosTitle": "Mijn video's",
@@ -133,7 +137,15 @@
     "registerButton": "Maak mijn account aan →",
     "registering": "Creatie…",
     "switchToRegister": "Registratie",
-    "switchToLogin": "Verbinding"
+    "switchToLogin": "Verbinding",
+    "confirmEmailLabel": "Bevestig e-mail",
+    "passwordHint": "Minimaal 8 tekens",
+    "emailMismatch": "De e-mails komen niet overeen.",
+    "passwordMismatch": "Wachtwoorden komen niet overeen.",
+    "confirmRequired": "Bevestig uw e-mailadres en wachtwoord.",
+    "registerSuccess": "Account aangemaakt! Controleer uw e-mail om uw registratie te bevestigen.",
+    "genericError": "Er is een fout opgetreden.",
+    "terms": "Door een account aan te maken, aanvaardt u de gebruiksvoorwaarden van de dienst."
   },
   "BillingPage": {
     "title": "Kies uw abonnement",
@@ -228,5 +240,32 @@
     "translatingLabel": "Vertaling in uitvoering…",
     "burningLabel": "De video finaliseren…",
     "uploadingLabel": "Bijna klaar…"
+  },
+  "JobEditor": {
+    "loading": "De editor laden...",
+    "errorBackHome": "← Terug naar huis",
+    "breadcrumbHome": "🏠 Thuis",
+    "breadcrumbEditor": "Uitgever • {id}…",
+    "breadcrumbLibrary": "📂 Mijn bibliotheek",
+    "videoNotAvailable": "Video niet beschikbaar",
+    "studioTitle": "✂️ Editiestudio",
+    "studioDesc": "Knippen, samenvoegen, ondertitels bewerken, uw segmenten herschikken",
+    "exportTitle": "📤 Clips exporteren",
+    "exportConcatLabel": "Voeg alle clips samen in één video",
+    "exportButton": "🚀 Exporteer {count}-segment{s}",
+    "exportProgress": "Exporteren wordt uitgevoerd...",
+    "exportError": "❌ Fout tijdens het exporteren",
+    "exportRetry": "Probeer het opnieuw",
+    "exportDone": "✅ {count} clip{s} gegenereerd{s}",
+    "exportConcatAvailable": "Aaneengeschakelde versie beschikbaar",
+    "clipLabel": "Clip {n}",
+    "clipDownload": "⬇ Downloaden",
+    "concatDownload": "⬇ Aaneengeschakelde video downloaden",
+    "backToEditor": "← Terug naar bewerken",
+    "toastClipExported": "✅ {count} clip{s} geëxporteerd{s}",
+    "toastExportError": "❌ Fout tijdens het exporteren",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Rollen",
+    "formatInsta": "Insta-plein"
   }
 }

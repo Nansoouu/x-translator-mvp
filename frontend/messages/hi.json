@@ -78,7 +78,11 @@
     "roadmap4Desc": "भाषा और क्षेत्र के आधार पर अपने अनुवादित वीडियो की सहभागिता को मापें।",
     "langsTitle": "{count} भाषाएँ उपलब्ध हैं",
     "footerCopyright": "© 2026 SpottedYou अनुवादक · ❤️ के साथ निर्मित",
-    "chooseLang": "🌐 ऊपर एक भाषा चुनें"
+    "chooseLang": "🌐 ऊपर एक भाषा चुनें",
+    "miniProof": "उन रचनाकारों द्वारा उपयोग किया जाता है जो अंतरराष्ट्रीय स्तर पर फलफूल रहे हैं!",
+    "counterVideos": "अनुवादित वीडियो",
+    "counterMinutes": "सामग्री के मिनट",
+    "counterToday": "आज"
   },
   "LibraryPage": {
     "myVideosTitle": "मेरे वीडियो",
@@ -133,7 +137,15 @@
     "registerButton": "मेरा खाता बनाएं →",
     "registering": "निर्माण…",
     "switchToRegister": "पंजीकरण",
-    "switchToLogin": "संबंध"
+    "switchToLogin": "संबंध",
+    "confirmEmailLabel": "ईमेल की पुष्टि करें",
+    "passwordHint": "न्यूनतम 8 अक्षर",
+    "emailMismatch": "ईमेल मेल नहीं खाते.",
+    "passwordMismatch": "सांकेतिक शब्द मेल नहीं खाते।",
+    "confirmRequired": "कृपया अपने ईमेल और पासवर्ड की पुष्टि करें.",
+    "registerSuccess": "खाता बनाया गया! अपने पंजीकरण की पुष्टि के लिए अपना ईमेल जांचें।",
+    "genericError": "एक गलती हुई है।",
+    "terms": "खाता बनाकर, आप सेवा के उपयोग की शर्तों को स्वीकार करते हैं।"
   },
   "BillingPage": {
     "title": "अपनी योजना चुनें",
@@ -228,5 +240,32 @@
     "translatingLabel": "अनुवाद प्रगति पर है...",
     "burningLabel": "वीडियो को अंतिम रूप दिया जा रहा है...",
     "uploadingLabel": "लगभग तैयार..."
+  },
+  "JobEditor": {
+    "loading": "संपादक लोड हो रहा है...",
+    "errorBackHome": "← घर वापसी",
+    "breadcrumbHome": "🏠घर",
+    "breadcrumbEditor": "प्रकाशक • {id}…",
+    "breadcrumbLibrary": "📂 मेरी लाइब्रेरी",
+    "videoNotAvailable": "वीडियो उपलब्ध नहीं है",
+    "studioTitle": "✂️ संपादन स्टूडियो",
+    "studioDesc": "उपशीर्षक काटें, मर्ज करें, संपादित करें, अपने खंडों को पुनर्व्यवस्थित करें",
+    "exportTitle": "📤 क्लिप निर्यात करें",
+    "exportConcatLabel": "सभी क्लिप को एक वीडियो में संयोजित करें",
+    "exportButton": "🚀 {count} सेगमेंट{s} निर्यात करें",
+    "exportProgress": "निर्यात प्रगति पर है...",
+    "exportError": "❌ निर्यात के दौरान त्रुटि",
+    "exportRetry": "पुनः प्रयास करें",
+    "exportDone": "✅ {count} क्लिप{s} जेनरेट {s}",
+    "exportConcatAvailable": "संयोजित संस्करण उपलब्ध है",
+    "clipLabel": "क्लिप {n}",
+    "clipDownload": "⬇ डाउनलोड करें",
+    "concatDownload": "⬇ संयोजित वीडियो डाउनलोड करें",
+    "backToEditor": "← संपादन पर वापस जाएँ",
+    "toastClipExported": "✅ {count} क्लिप{s} निर्यातित{s}",
+    "toastExportError": "❌ निर्यात के दौरान त्रुटि",
+    "formatYoutube": "यूट्यूब",
+    "formatTikTok": "टिकटॉक • रील्स",
+    "formatInsta": "इंस्टा स्क्वायर"
   }
 }

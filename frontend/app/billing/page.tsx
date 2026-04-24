@@ -5,12 +5,45 @@ import { getBillingStatus, createCheckout } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
+// ── Détection pays → devise ──────────────────────────────────────────────────
+const PRICE_MAP: Record<string, { currency: string; locale: string; pro: number; editor: number; symbol: string }> = {
+  'en-US':  { currency: 'USD', locale: 'en-US', pro: 10, editor: 50, symbol: '$' },
+  'en-GB':  { currency: 'GBP', locale: 'en-GB', pro: 10, editor: 50, symbol: '£' },
+  'en-AU':  { currency: 'AUD', locale: 'en-AU', pro: 15, editor: 75, symbol: 'A$' },
+  'en-CA':  { currency: 'CAD', locale: 'en-CA', pro: 14, editor: 70, symbol: 'CA$' },
+  'ja-JP':  { currency: 'JPY', locale: 'ja-JP', pro: 1500, editor: 7500, symbol: '¥' },
+  'ko-KR':  { currency: 'KRW', locale: 'ko-KR', pro: 15000, editor: 75000, symbol: '₩' },
+  'de-DE':  { currency: 'EUR', locale: 'de-DE', pro: 10, editor: 50, symbol: '€' },
+  'es-ES':  { currency: 'EUR', locale: 'es-ES', pro: 10, editor: 50, symbol: '€' },
+  'it-IT':  { currency: 'EUR', locale: 'it-IT', pro: 10, editor: 50, symbol: '€' },
+  'pt-BR':  { currency: 'BRL', locale: 'pt-BR', pro: 50, editor: 250, symbol: 'R$' },
+  'zh-CN':  { currency: 'CNY', locale: 'zh-CN', pro: 70, editor: 350, symbol: '¥' },
+  'zh-TW':  { currency: 'TWD', locale: 'zh-TW', pro: 320, editor: 1600, symbol: 'NT$' },
+};
+const FALLBACK = { currency: 'EUR', locale: 'fr-FR', pro: 10, editor: 50, symbol: '€' };
+
+function getLocalePrice() {
+  if (typeof navigator === 'undefined') return FALLBACK;
+  const lang = navigator.language;
+  // Matching exact puis partiel
+  if (PRICE_MAP[lang]) return PRICE_MAP[lang];
+  const base = lang.split('-')[0];
+  for (const [key, val] of Object.entries(PRICE_MAP)) {
+    if (key.startsWith(base)) return val;
+  }
+  return FALLBACK;
+}
+
+function formatPrice(amount: number, locale: string, currency: string): string {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+}
+
 // ── Page billing ──────────────────────────────────────────────────────────────
 export default function BillingPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const t = useTranslations('BillingPage');
+  const localePrice = getLocalePrice();
 
-  // ── Plans (construits dans le composant pour accéder à t()) ───────────────
   const PLANS = [
     {
       id:        'free',
@@ -26,8 +59,6 @@ export default function BillingPage() {
         { text: t('freeFeature3'), ok: true  },
         { text: t('freeFeature4'), ok: true  },
         { text: t('freeFeature5'), ok: false },
-        { text: t('freeFeature6'), ok: false },
-        { text: t('freeFeature7'), ok: false },
       ],
       cta:   null,
       extra: null,
@@ -35,7 +66,7 @@ export default function BillingPage() {
     {
       id:        'monthly',
       name:      t('proName'),
-      price:     t('proPrice'),
+      price:     formatPrice(localePrice.pro, localePrice.locale, localePrice.currency),
       period:    t('proPeriod'),
       badge:     t('popularBadge'),
       desc:      t('proDesc'),
@@ -52,14 +83,14 @@ export default function BillingPage() {
       extra: {
         id:    'watermark_custom',
         label: t('watermarkOptionLabel'),
-        price: t('watermarkOptionPrice'),
+        price: formatPrice(5, localePrice.locale, localePrice.currency),
         desc:  t('watermarkOptionDesc'),
       },
     },
     {
       id:        'editors',
       name:      t('editorsName'),
-      price:     t('editorsPrice'),
+      price:     formatPrice(localePrice.editor, localePrice.locale, localePrice.currency),
       period:    t('editorsPeriod'),
       badge:     t('proBadge'),
       desc:      t('editorsDesc'),

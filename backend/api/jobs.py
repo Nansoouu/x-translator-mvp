@@ -79,20 +79,30 @@ class UpdateSegmentRequest(BaseModel):
 # ── File d'attente (public, pas d'auth) ──────────────────────────────────────
 
 @router.post("/estimate-duration")
-async def estimate_duration(body: EstimateUrlRequest):
+async def estimate_duration(body: EstimateUrlRequest, request: Request):
     """
     Estime la durée d'une vidéo à partir de son URL (sans téléchargement complet).
-    Utilisé par le frontend pour décider si la modale d'upsell doit s'afficher.
+    Retourne aussi les infos de quota pour l'upsell intelligent.
     """
     import yt_dlp
+    from core.ip_limiter import check_ip_quota, is_local_ip, is_production
+
     try:
         with yt_dlp.YoutubeDL({"quiet": True, "extract_flat": True}) as ydl:
             info = ydl.extract_info(body.source_url, download=False)
             duration_s = info.get("duration") or 0
-            return {"duration_s": duration_s}
     except Exception as e:
         print(f"[estimate-duration] ❌ {e}")
         return {"duration_s": 0, "error": str(e)[:100]}
+
+    result = {"duration_s": duration_s}
+
+    # ── Quota IP (non connectés, prod uniquement) ──
+    client_ip = request.client.host
+    ip_quota = await check_ip_quota(client_ip)
+    result["ip_quota"] = ip_quota
+
+    return result
 
 
 @router.get("/queue-stats")

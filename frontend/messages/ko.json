@@ -78,7 +78,11 @@
     "roadmap4Desc": "언어 및 지역별로 번역된 동영상의 참여도를 측정하세요.",
     "langsTitle": "{count} 언어 사용 가능",
     "footerCopyright": "© 2026 SpottedYou 번역기 · 내장 ❤️",
-    "chooseLang": "🌐 위에서 언어를 선택하세요"
+    "chooseLang": "🌐 위에서 언어를 선택하세요",
+    "miniProof": "해외에서 붐을 일으키고 있는 크리에이터들이 사용하고 있습니다!",
+    "counterVideos": "번역된 동영상",
+    "counterMinutes": "콘텐츠 시간(분)",
+    "counterToday": "오늘"
   },
   "LibraryPage": {
     "myVideosTitle": "내 동영상",
@@ -133,7 +137,15 @@
     "registerButton": "내 계정 만들기 →",
     "registering": "창조…",
     "switchToRegister": "등록",
-    "switchToLogin": "연결"
+    "switchToLogin": "연결",
+    "confirmEmailLabel": "이메일 확인",
+    "passwordHint": "최소 8자",
+    "emailMismatch": "이메일이 일치하지 않습니다.",
+    "passwordMismatch": "비밀번호가 일치하지 않습니다.",
+    "confirmRequired": "이메일과 비밀번호를 확인해 주세요.",
+    "registerSuccess": "계정이 생성되었습니다! 이메일을 확인하여 등록을 확인하세요.",
+    "genericError": "오류가 발생했습니다.",
+    "terms": "계정을 생성하면 서비스 이용 약관에 동의하게 됩니다."
   },
   "BillingPage": {
     "title": "계획을 선택하세요",
@@ -228,5 +240,32 @@
     "translatingLabel": "번역 진행 중…",
     "burningLabel": "영상을 마무리하는 중…",
     "uploadingLabel": "거의 준비가 되었습니다…"
+  },
+  "JobEditor": {
+    "loading": "편집기 로드 중…",
+    "errorBackHome": "← 홈으로 돌아가기",
+    "breadcrumbHome": "🏠 홈",
+    "breadcrumbEditor": "출판사 • {id}…",
+    "breadcrumbLibrary": "📂 내 라이브러리",
+    "videoNotAvailable": "동영상을 볼 수 없음",
+    "studioTitle": "✂️ 편집 스튜디오",
+    "studioDesc": "자막 잘라내기, 병합, 편집, 세그먼트 재정렬",
+    "exportTitle": "📤 클립 내보내기",
+    "exportConcatLabel": "모든 클립을 하나의 비디오로 연결",
+    "exportButton": "🚀 {count} 세그먼트{s} 내보내기",
+    "exportProgress": "내보내기 진행 중…",
+    "exportError": "❌ 내보내기 중 오류가 발생했습니다.",
+    "exportRetry": "다시 시도하세요",
+    "exportDone": "✅ {count} 클립{s} 생성{s}",
+    "exportConcatAvailable": "연결된 버전 사용 가능",
+    "clipLabel": "클립 {n}",
+    "clipDownload": "⬇ 다운로드",
+    "concatDownload": "⬇ 연결된 비디오 다운로드",
+    "backToEditor": "← 편집으로 돌아가기",
+    "toastClipExported": "✅ {count} 클립{s} 내보내기{s}",
+    "toastExportError": "❌ 내보내기 중 오류가 발생했습니다.",
+    "formatYoutube": "유튜브",
+    "formatTikTok": "TikTok • 릴",
+    "formatInsta": "인스타 광장"
   }
 }

@@ -78,7 +78,11 @@
     "roadmap4Desc": "Çevrilmiş videolarınızın etkileşimini dile ve bölgeye göre ölçün.",
     "langsTitle": "{count} dilleri mevcut",
     "footerCopyright": "© 2026 SpottedYou Translator · ❤️ ile oluşturuldu",
-    "chooseLang": "🌐 Yukarıdan bir dil seçin"
+    "chooseLang": "🌐 Yukarıdan bir dil seçin",
+    "miniProof": "Uluslararası alanda patlama yaşayan yaratıcılar tarafından kullanılıyor!",
+    "counterVideos": "Çevrilmiş videolar",
+    "counterMinutes": "Dakikalık içerik",
+    "counterToday": "Bugün"
   },
   "LibraryPage": {
     "myVideosTitle": "Videolarım",
@@ -133,7 +137,15 @@
     "registerButton": "Hesabımı oluştur →",
     "registering": "Yaratılış…",
     "switchToRegister": "Kayıt",
-    "switchToLogin": "Bağlantı"
+    "switchToLogin": "Bağlantı",
+    "confirmEmailLabel": "E-posta Onayla",
+    "passwordHint": "Minimum 8 karakter",
+    "emailMismatch": "E-postalar eşleşmiyor.",
+    "passwordMismatch": "Şifreler eşleşmiyor.",
+    "confirmRequired": "Lütfen e-posta adresinizi ve şifrenizi doğrulayın.",
+    "registerSuccess": "Hesap oluşturuldu! Kaydınızı onaylamak için e-postanızı kontrol edin.",
+    "genericError": "Bir hata oluştu.",
+    "terms": "Hesap oluşturarak hizmetin kullanım koşullarını kabul etmiş olursunuz."
   },
   "BillingPage": {
     "title": "Planınızı seçin",
@@ -228,5 +240,32 @@
     "translatingLabel": "Çeviri devam ediyor…",
     "burningLabel": "Video sonlandırılıyor…",
     "uploadingLabel": "Neredeyse hazır…"
+  },
+  "JobEditor": {
+    "loading": "Editör yükleniyor…",
+    "errorBackHome": "← Ana sayfaya geri dön",
+    "breadcrumbHome": "🏠 Ana Sayfa",
+    "breadcrumbEditor": "Yayıncı • {id}…",
+    "breadcrumbLibrary": "📂 Kütüphanem",
+    "videoNotAvailable": "Video kullanılamıyor",
+    "studioTitle": "✂️ Düzenleme Stüdyosu",
+    "studioDesc": "Altyazıları kesin, birleştirin, düzenleyin, bölümlerinizi yeniden düzenleyin",
+    "exportTitle": "📤 Klipleri dışa aktar",
+    "exportConcatLabel": "Tüm klipleri tek bir videoda birleştirin",
+    "exportButton": "🚀 {count} segmentini dışa aktar{s}",
+    "exportProgress": "Dışa aktarma devam ediyor…",
+    "exportError": "❌ Dışa aktarma sırasında hata",
+    "exportRetry": "Tekrar deneyin",
+    "exportDone": "✅ {count} klip{s} oluşturuldu{s}",
+    "exportConcatAvailable": "Birleştirilmiş sürüm mevcut",
+    "clipLabel": "{n} Klip",
+    "clipDownload": "⬇ İndir",
+    "concatDownload": "⬇ Birleştirilmiş videoyu indirin",
+    "backToEditor": "← Düzenlemeye geri dön",
+    "toastClipExported": "✅ {count} klip{s} dışa aktarıldı{s}",
+    "toastExportError": "❌ Dışa aktarma sırasında hata",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Makaralar",
+    "formatInsta": "Instagram meydanı"
   }
 }

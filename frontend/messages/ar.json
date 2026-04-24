@@ -78,7 +78,11 @@
     "roadmap4Desc": "قم بقياس التفاعل مع مقاطع الفيديو المترجمة حسب اللغة والمنطقة.",
     "langsTitle": "{count} اللغات المتاحة",
     "footerCopyright": "© 2026 SpottedYou Translator · تم تصميمه باستخدام ❤️",
-    "chooseLang": "🌐 اختر لغة أعلاه"
+    "chooseLang": "🌐 اختر لغة أعلاه",
+    "miniProof": "يستخدمه المبدعون الذين يزدهرون عالميًا!",
+    "counterVideos": "فيديوهات مترجمة",
+    "counterMinutes": "دقائق من المحتوى",
+    "counterToday": "اليوم"
   },
   "LibraryPage": {
     "myVideosTitle": "مقاطع الفيديو الخاصة بي",
@@ -133,7 +137,15 @@
     "registerButton": "إنشاء حسابي →",
     "registering": "الخلق…",
     "switchToRegister": "تسجيل",
-    "switchToLogin": "اتصال"
+    "switchToLogin": "اتصال",
+    "confirmEmailLabel": "تأكيد عنوان البريد الإلكتروني",
+    "passwordHint": "8 أحرف كحد أدنى",
+    "emailMismatch": "رسائل البريد الإلكتروني غير متطابقة.",
+    "passwordMismatch": "كلمات المرور غير متطابقة.",
+    "confirmRequired": "يرجى تأكيد البريد الإلكتروني وكلمة المرور الخاصة بك.",
+    "registerSuccess": "تم إنشاء الحساب! تحقق من بريدك الإلكتروني لتأكيد تسجيلك.",
+    "genericError": "لقد حدث خطأ.",
+    "terms": "من خلال إنشاء حساب، فإنك توافق على شروط استخدام الخدمة."
   },
   "BillingPage": {
     "title": "اختر خطتك",
@@ -228,5 +240,32 @@
     "translatingLabel": "جاري الترجمة…",
     "burningLabel": "الانتهاء من الفيديو…",
     "uploadingLabel": "شبه جاهز…"
+  },
+  "JobEditor": {
+    "loading": "جارٍ تحميل المحرر...",
+    "errorBackHome": "← العودة إلى المنزل",
+    "breadcrumbHome": "🏠 المنزل",
+    "breadcrumbEditor": "الناشر • {id}…",
+    "breadcrumbLibrary": "📂مكتبتي",
+    "videoNotAvailable": "الفيديو غير متوفر",
+    "studioTitle": "✂️ ستوديو التحرير",
+    "studioDesc": "قص ودمج وتحرير الترجمات وإعادة ترتيب المقاطع الخاصة بك",
+    "exportTitle": "📤 تصدير المقاطع",
+    "exportConcatLabel": "جمع كل المقاطع في فيديو واحد",
+    "exportButton": "🚀 تصدير شريحة {count}{s}",
+    "exportProgress": "جاري التصدير…",
+    "exportError": "❌ حدث خطأ أثناء التصدير",
+    "exportRetry": "حاول ثانية",
+    "exportDone": "✅مقطع {count}{s} تم إنشاؤه{s}",
+    "exportConcatAvailable": "النسخة متسلسلة المتاحة",
+    "clipLabel": "مقطع {n}",
+    "clipDownload": "⬇ تحميل",
+    "concatDownload": "⬇ قم بتنزيل الفيديو المتسلسل",
+    "backToEditor": "← العودة إلى التحرير",
+    "toastClipExported": "✅مقطع {count}{s} تم تصديره{s}",
+    "toastExportError": "❌ حدث خطأ أثناء التصدير",
+    "formatYoutube": "يوتيوب",
+    "formatTikTok": "TikTok • بكرات",
+    "formatInsta": "ساحة الانستا"
   }
 }

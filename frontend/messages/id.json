@@ -78,7 +78,11 @@
     "roadmap4Desc": "Ukur keterlibatan video terjemahan Anda berdasarkan bahasa dan wilayah.",
     "langsTitle": "Bahasa {count} tersedia",
     "footerCopyright": "© 2026 SpottedYou Translator · Dibangun dengan ❤️",
-    "chooseLang": "🌐 Pilih bahasa di atas"
+    "chooseLang": "🌐 Pilih bahasa di atas",
+    "miniProof": "Digunakan oleh para kreator yang sedang booming secara internasional!",
+    "counterVideos": "Video yang diterjemahkan",
+    "counterMinutes": "Risalah konten",
+    "counterToday": "Hari ini"
   },
   "LibraryPage": {
     "myVideosTitle": "Video saya",
@@ -133,7 +137,15 @@
     "registerButton": "Buat akun saya →",
     "registering": "Penciptaan…",
     "switchToRegister": "Pendaftaran",
-    "switchToLogin": "Koneksi"
+    "switchToLogin": "Koneksi",
+    "confirmEmailLabel": "Konfirmasi email",
+    "passwordHint": "Minimal 8 karakter",
+    "emailMismatch": "Emailnya tidak cocok.",
+    "passwordMismatch": "Kata sandi tidak cocok.",
+    "confirmRequired": "Silakan konfirmasi email dan kata sandi Anda.",
+    "registerSuccess": "Akun dibuat! Periksa email Anda untuk mengonfirmasi pendaftaran Anda.",
+    "genericError": "Telah terjadi kesalahan.",
+    "terms": "Dengan membuat akun, Anda menerima ketentuan penggunaan layanan."
   },
   "BillingPage": {
     "title": "Pilih paket Anda",
@@ -228,5 +240,32 @@
     "translatingLabel": "Terjemahan sedang berlangsung…",
     "burningLabel": "Menyelesaikan video…",
     "uploadingLabel": "Hampir siap…"
+  },
+  "JobEditor": {
+    "loading": "Memuat editor…",
+    "errorBackHome": "← Kembali ke rumah",
+    "breadcrumbHome": "🏠 Rumah",
+    "breadcrumbEditor": "Penerbit • {id}…",
+    "breadcrumbLibrary": "📂 Perpustakaan saya",
+    "videoNotAvailable": "Video tidak tersedia",
+    "studioTitle": "✂️ Studio Pengeditan",
+    "studioDesc": "Potong, gabungkan, edit subtitle, atur ulang segmen Anda",
+    "exportTitle": "📤 Ekspor klip",
+    "exportConcatLabel": "Gabungkan semua klip menjadi satu video",
+    "exportButton": "🚀 Ekspor segmen {count}{s}",
+    "exportProgress": "Ekspor sedang berlangsung…",
+    "exportError": "❌ Kesalahan selama ekspor",
+    "exportRetry": "Coba lagi",
+    "exportDone": "✅ Klip {count}{s} dihasilkan{s}",
+    "exportConcatAvailable": "Tersedia versi gabungan",
+    "clipLabel": "Klip {n}",
+    "clipDownload": "⬇ Unduh",
+    "concatDownload": "⬇ Unduh video gabungan",
+    "backToEditor": "← Kembali ke pengeditan",
+    "toastClipExported": "✅ Klip {count}{s} diekspor{s}",
+    "toastExportError": "❌ Kesalahan selama ekspor",
+    "formatYoutube": "YouTube",
+    "formatTikTok": "TikTok • Gulungan",
+    "formatInsta": "Kotak Insta"
   }
 }

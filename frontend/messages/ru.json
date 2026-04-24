@@ -78,7 +78,11 @@
     "roadmap4Desc": "Оцените вовлеченность переведенных видео по языку и региону.",
     "langsTitle": "Доступны языки {count}",
     "footerCopyright": "© 2026 SpottedYou Translator · Создано с ❤️",
-    "chooseLang": "🌐 Выберите язык выше"
+    "chooseLang": "🌐 Выберите язык выше",
+    "miniProof": "Используется создателями, которые процветают на международном уровне!",
+    "counterVideos": "Переведенные видео",
+    "counterMinutes": "Минуты контента",
+    "counterToday": "Сегодня"
   },
   "LibraryPage": {
     "myVideosTitle": "Мои видео",
@@ -133,7 +137,15 @@
     "registerButton": "Создать мою учетную запись →",
     "registering": "Создание…",
     "switchToRegister": "Регистрация",
-    "switchToLogin": "Связь"
+    "switchToLogin": "Связь",
+    "confirmEmailLabel": "Подтвердите адрес электронной почты",
+    "passwordHint": "минимум 8 символов",
+    "emailMismatch": "Электронные письма не совпадают.",
+    "passwordMismatch": "Пароли не совпадают.",
+    "confirmRequired": "Пожалуйста, подтвердите свой адрес электронной почты и пароль.",
+    "registerSuccess": "Аккаунт создан! Проверьте свою электронную почту, чтобы подтвердить регистрацию.",
+    "genericError": "Произошла ошибка.",
+    "terms": "Создавая учетную запись, вы принимаете условия использования сервиса."
   },
   "BillingPage": {
     "title": "Выберите свой план",
@@ -228,5 +240,32 @@
     "translatingLabel": "Перевод в процессе…",
     "burningLabel": "Завершение видео…",
     "uploadingLabel": "Почти готово…"
+  },
+  "JobEditor": {
+    "loading": "Загрузка редактора…",
+    "errorBackHome": "← Вернуться на главную",
+    "breadcrumbHome": "🏠 Дом",
+    "breadcrumbEditor": "Издатель • {id}…",
+    "breadcrumbLibrary": "📂 Моя библиотека",
+    "videoNotAvailable": "Видео недоступно",
+    "studioTitle": "✂️ Монтажная студия",
+    "studioDesc": "Вырезайте, объединяйте, редактируйте субтитры, меняйте местами сегменты",
+    "exportTitle": "📤 Экспорт клипов",
+    "exportConcatLabel": "Объедините все клипы в одно видео",
+    "exportButton": "🚀 Экспорт сегмента {count}{s}",
+    "exportProgress": "Выполняется экспорт…",
+    "exportError": "❌ Ошибка при экспорте",
+    "exportRetry": "Попробуйте еще раз",
+    "exportDone": "✅ Клип {count}, сгенерированный {s}, {s}",
+    "exportConcatAvailable": "Доступна объединенная версия",
+    "clipLabel": "Клип {n}",
+    "clipDownload": "⬇ Скачать",
+    "concatDownload": "⬇ Скачать составное видео",
+    "backToEditor": "← Вернуться к редактированию",
+    "toastClipExported": "✅ Клип {count}, {s} экспортирован, {s}",
+    "toastExportError": "❌ Ошибка при экспорте",
+    "formatYoutube": "Ютуб",
+    "formatTikTok": "TikTok • Катушки",
+    "formatInsta": "Инста-сквер"
   }
 }

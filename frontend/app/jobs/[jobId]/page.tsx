@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/useAuth';
 import { getJobStatus, getTranscriptionSegments, exportClips } from '@/lib/api';
 import { SubtitleEditor } from '@/components/job/SubtitleEditor';
@@ -16,12 +17,13 @@ function formatTime(s: number): string {
 }
 
 const FORMATS = [
-  { id: '16:9',  label: '16:9', sublabel: 'YouTube',        icon: '🖥️' },
-  { id: '9:16',  label: '9:16',  sublabel: 'TikTok • Reels', icon: '📱' },
-  { id: '1:1',   label: '1:1',   sublabel: 'Insta carré',    icon: '⬜' },
+  { id: '16:9',  label: '16:9', sublabelKey: 'formatYoutube',     icon: '🖥️' },
+  { id: '9:16',  label: '9:16',  sublabelKey: 'formatTikTok',     icon: '📱' },
+  { id: '1:1',   label: '1:1',   sublabelKey: 'formatInsta',      icon: '⬜' },
 ];
 
 export default function JobEditorPage() {
+  const t = useTranslations('JobEditor');
   const { jobId } = useParams<{ jobId: string }>();
   const router    = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -100,10 +102,11 @@ export default function JobEditorPage() {
       });
       setExportResult(result);
       setExportState('done');
-      showToast(`✅ ${result.clip_count} clip(s) exportés`);
+      const pluralS = result.clip_count > 1 ? 's' : '';
+      showToast(t('toastClipExported', { count: result.clip_count, s: pluralS }));
     } catch (err) {
       setExportState('error');
-      showToast('❌ Erreur lors de l\'export');
+      showToast(t('toastExportError'));
     }
   };
 
@@ -158,7 +161,7 @@ export default function JobEditorPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
           </svg>
-          <p className="text-sm text-gray-400">Chargement de l'éditeur…</p>
+          <p className="text-sm text-gray-400">{t('loading')}</p>
         </div>
       </main>
     );
@@ -169,7 +172,7 @@ export default function JobEditorPage() {
       <main className="h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-red-400">❌ {error}</p>
-          <Link href="/" className="text-blue-400 underline text-sm">← Retour à l'accueil</Link>
+          <Link href="/" className="text-blue-400 underline text-sm">{t('errorBackHome')}</Link>
         </div>
       </main>
     );
@@ -189,11 +192,11 @@ export default function JobEditorPage() {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link href="/" className="hover:text-white transition-colors">🏠 Accueil</Link>
+          <Link href="/" className="hover:text-white transition-colors">{t('breadcrumbHome')}</Link>
           <span>/</span>
-          <span className="text-gray-300">Éditeur • {jobId.slice(0, 8)}…</span>
+          <span className="text-gray-300">{t('breadcrumbEditor', { id: jobId.slice(0, 8) })}</span>
           <span className="ml-auto">
-            <Link href="/library" className="text-blue-400 hover:text-blue-300 underline">📂 Ma bibliothèque</Link>
+            <Link href="/library" className="text-blue-400 hover:text-blue-300 underline">{t('breadcrumbLibrary')}</Link>
           </span>
         </div>
 
@@ -214,7 +217,7 @@ export default function JobEditorPage() {
             <div className="aspect-video bg-gray-900 flex items-center justify-center text-gray-600 text-sm">
               <div className="text-center">
                 <p className="text-2xl mb-2">🎬</p>
-                <p>Vidéo non disponible</p>
+                <p>{t('videoNotAvailable')}</p>
               </div>
             </div>
           )}
@@ -223,8 +226,8 @@ export default function JobEditorPage() {
         {/* ── 2. STUDIO D'ÉDITION (SubtitleEditor avec timeline intégrée) ── */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
           <div className="px-5 pt-5 pb-2 border-b border-gray-800">
-            <h2 className="text-lg font-bold text-white">✂️ Studio d'édition</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Coupe, fusionne, édite les sous-titres, réorganise tes segments</p>
+            <h2 className="text-lg font-bold text-white">{t('studioTitle')}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{t('studioDesc')}</p>
           </div>
           <div className="p-1">
             <SubtitleEditor
@@ -239,7 +242,7 @@ export default function JobEditorPage() {
 
         {/* ── 3. PANEL EXPORT ── */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-          <h3 className="text-sm font-bold text-white">📤 Exporter les clips</h3>
+          <h3 className="text-sm font-bold text-white">{t('exportTitle')}</h3>
 
           {/* Format */}
           <div className="flex gap-2">
@@ -256,7 +259,7 @@ export default function JobEditorPage() {
               >
                 <span className="text-lg">{f.icon}</span>
                 <span className="text-xs font-bold">{f.label}</span>
-                <span className="text-[9px] opacity-70">{f.sublabel}</span>
+                <span className="text-[9px] opacity-70">{t(f.sublabelKey)}</span>
               </button>
             ))}
           </div>
@@ -270,7 +273,7 @@ export default function JobEditorPage() {
               disabled={exportState === 'exporting'}
               className="rounded"
             />
-            Concaténer tous les clips en une seule vidéo
+            {t('exportConcatLabel')}
           </label>
 
           {/* Bouton export */}
@@ -280,7 +283,7 @@ export default function JobEditorPage() {
               disabled={segments.length === 0}
               className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-all"
             >
-              🚀 Exporter {segments.length} segment{segments.length > 1 ? 's' : ''}
+              {t('exportButton', { count: segments.length, s: segments.length > 1 ? 's' : '' })}
             </button>
           )}
 
@@ -290,15 +293,15 @@ export default function JobEditorPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
               </svg>
-              <span className="text-sm font-semibold">Export en cours…</span>
+              <span className="text-sm font-semibold">{t('exportProgress')}</span>
             </div>
           )}
 
           {exportState === 'error' && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
-              <p className="text-red-400 text-sm mb-2">❌ Erreur lors de l'export</p>
+              <p className="text-red-400 text-sm mb-2">{t('exportError')}</p>
               <button onClick={() => setExportState('idle')} className="text-xs text-gray-500 hover:text-white underline">
-                Réessayer
+                {t('exportRetry')}
               </button>
             </div>
           )}
@@ -306,9 +309,11 @@ export default function JobEditorPage() {
           {exportState === 'done' && exportResult && (
             <div className="space-y-3">
               <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3 text-center">
-                <p className="text-emerald-400 text-sm font-bold mb-1">✅ {exportResult.clip_count} clip(s) générés</p>
+                <p className="text-emerald-400 text-sm font-bold mb-1">
+                  {t('exportDone', { count: exportResult.clip_count, s: exportResult.clip_count > 1 ? 's' : '' })}
+                </p>
                 {exportResult.concat_url && (
-                  <p className="text-xs text-gray-500">Version concaténée disponible</p>
+                  <p className="text-xs text-gray-500">{t('exportConcatAvailable')}</p>
                 )}
               </div>
 
@@ -317,7 +322,7 @@ export default function JobEditorPage() {
                   <div key={clip.segment_id || idx} className="flex items-center justify-between bg-gray-800/50 rounded-xl p-3">
                     <div>
                       <p className="text-xs font-medium text-white">
-                        Clip {idx + 1} • {formatTime(clip.start_s)} → {formatTime(clip.end_s)}
+                        {t('clipLabel', { n: idx + 1 })} • {formatTime(clip.start_s)} → {formatTime(clip.end_s)}
                       </p>
                       <p className="text-xs text-gray-500">{clip.duration?.toFixed(1)}s</p>
                     </div>
@@ -326,7 +331,7 @@ export default function JobEditorPage() {
                         onClick={() => handleDownload(clip.url, `clip_${idx + 1}.mp4`)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs transition-colors"
                       >
-                        ⬇ Télécharger
+                        {t('clipDownload')}
                       </button>
                     )}
                   </div>
@@ -338,7 +343,7 @@ export default function JobEditorPage() {
                   onClick={() => handleDownload(exportResult.concat_url, 'concat.mp4')}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold transition-colors"
                 >
-                  ⬇ Télécharger la vidéo concaténée
+                  {t('concatDownload')}
                 </button>
               )}
 
@@ -346,7 +351,7 @@ export default function JobEditorPage() {
                 onClick={() => { setExportState('idle'); setExportResult(null); }}
                 className="w-full text-xs text-gray-500 hover:text-white underline py-2"
               >
-                ← Retour à l'édition
+                {t('backToEditor')}
               </button>
             </div>
           )}
