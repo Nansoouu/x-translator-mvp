@@ -235,8 +235,7 @@ async def delete_segment(
         await conn.execute(
             """
             UPDATE transcription_segments
-            SET custom_order = sub.new_order,
-                updated_at = now()
+            SET custom_order = sub.new_order
             FROM (
                 SELECT id, ROW_NUMBER() OVER (ORDER BY custom_order NULLS LAST, start_time) * 10 as new_order
                 FROM transcription_segments
@@ -739,7 +738,7 @@ async def reorder_segment(
         await conn.execute(
             """
             UPDATE transcription_segments
-            SET custom_order=$1, updated_at=now()
+            SET custom_order=$1
             WHERE id=$2
             """,
             body.new_order, seg_id,
@@ -857,8 +856,7 @@ async def update_segment(
             SET translated_text=$1, 
                 start_time=$2, 
                 end_time=$3,
-                is_edited=True,
-                updated_at=now()
+                is_edited=True
             WHERE id=$4
             """,
             body.translation,
